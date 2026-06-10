@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbital Parameters — Interactive 3D</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+  :root{--bg:#050a12;--dim:rgba(180,220,255,0.35);--panel:rgba(5,18,35,0.92);}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{background:var(--bg);color:#c8e6f5;font-family:'Rajdhani',sans-serif;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      radial-gradient(1px 1px at  7% 11%,rgba(255,255,255,.6)0%,transparent 100%),
+      radial-gradient(1px 1px at 21% 67%,rgba(255,255,255,.4)0%,transparent 100%),
+      radial-gradient(1px 1px at 37% 27%,rgba(255,255,255,.5)0%,transparent 100%),
+      radial-gradient(1px 1px at 52% 82%,rgba(255,255,255,.3)0%,transparent 100%),
+      radial-gradient(1px 1px at 68% 17%,rgba(255,255,255,.6)0%,transparent 100%),
+      radial-gradient(1px 1px at 82% 51%,rgba(255,255,255,.4)0%,transparent 100%),
+      radial-gradient(1px 1px at 13% 87%,rgba(255,255,255,.3)0%,transparent 100%),
+      radial-gradient(1px 1px at 90%  8%,rgba(255,255,255,.5)0%,transparent 100%),
+      radial-gradient(1px 1px at 46% 46%,rgba(255,255,255,.2)0%,transparent 100%),
+      radial-gradient(1px 1px at 32% 41%,rgba(255,255,255,.4)0%,transparent 100%),
+      radial-gradient(1px 1px at 73% 72%,rgba(255,255,255,.3)0%,transparent 100%),
+      radial-gradient(1px 1px at 59%  5%,rgba(255,255,255,.6)0%,transparent 100%),
+      radial-gradient(1px 1px at 94% 77%,rgba(255,255,255,.4)0%,transparent 100%);}
+
+  /* ── Header ── */
+  header{width:100%;padding:10px 16px 8px;border-bottom:1px solid rgba(0,180,255,.15);
+    display:flex;align-items:center;gap:10px;z-index:2;background:rgba(5,10,18,.9);flex-wrap:wrap;}
+  header h1{font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;}
+  .badge{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;
+    padding:3px 8px;border-radius:2px;border:1px solid rgba(0,200,255,.45);color:#00e5ff;background:rgba(0,200,255,.07);}
+  .corner{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,200,255,.32);}
+
+  /* ── Main layout: side-by-side on tablet+, stacked on mobile ── */
+  .main{display:flex;width:100%;max-width:1180px;padding:10px;z-index:2;
+    align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .cw{flex:1;min-width:280px;background:var(--panel);border:1px solid rgba(0,180,255,.14);
+    border-radius:2px;padding:8px 10px 6px;position:relative;}
+  .cw::before{content:'';position:absolute;top:0;left:0;width:36px;height:2px;background:#00e5ff;}
+  .ctitle{font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);
+    margin-bottom:5px;font-family:'Share Tech Mono',monospace;}
+  canvas{display:block;width:100%;cursor:grab;touch-action:none;}
+  canvas.dragging{cursor:grabbing;}
+
+  /* ── Controls panel ── */
+  .controls{width:220px;display:flex;flex-direction:column;gap:8px;
+    max-height:calc(100vh - 80px);overflow-y:auto;}
+  .ctrl{background:var(--panel);border:1px solid rgba(0,180,255,.14);
+    border-radius:2px;padding:10px 12px;position:relative;}
+  .ctrl::before{content:'';position:absolute;top:0;left:0;width:22px;height:2px;background:var(--al,#00e5ff);}
+  .ct{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;
+    color:var(--dim);text-transform:uppercase;margin-bottom:8px;}
+  .sg{margin-bottom:9px;}.sg:last-child{margin-bottom:0;}
+  .sl{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+  .sn{font-size:11px;font-weight:600;letter-spacing:.5px;}
+  .sv{font-family:'Share Tech Mono',monospace;font-size:11px;color:#fff;min-width:40px;text-align:right;}
+  input[type=range]{width:100%;height:4px;-webkit-appearance:none;
+    background:rgba(0,180,255,.18);border-radius:2px;outline:none;cursor:pointer;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+    border-radius:50%;background:var(--thumb,#00e5ff);box-shadow:0 0 6px var(--thumb,#00e5ff);}
+  .btn{width:100%;padding:9px;background:rgba(0,200,255,.07);border:1px solid rgba(0,200,255,.28);
+    color:#00e5ff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;
+    letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .2s;}
+  .btn:hover,.btn:active{background:rgba(0,200,255,.18);box-shadow:0 0 10px rgba(0,200,255,.16);}
+  .legend{display:flex;flex-direction:column;gap:5px;}
+  .li{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:500;line-height:1.3;}
+  .ld{width:16px;height:3px;flex-shrink:0;border-radius:1px;}
+  .ldot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .infobox{font-size:10px;font-family:'Share Tech Mono',monospace;background:rgba(0,200,255,.05);
+    border:1px solid rgba(0,200,255,.18);border-radius:2px;padding:8px 9px;line-height:1.7;color:rgba(180,230,255,.72);}
+  .infobox b{color:#00e5ff;}
+  .frmbtn{flex:1;padding:8px 4px;background:rgba(0,200,255,.05);border:none;
+    color:rgba(0,200,255,.50);font-family:'Rajdhani',sans-serif;font-size:13px;
+    font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .18s;}
+  .frmbtn:hover,.frmbtn:active{background:rgba(0,200,255,.12);color:#00e5ff;}
+  .frmbtn.active{background:rgba(0,200,255,.18);color:#00e5ff;box-shadow:inset 0 0 8px rgba(0,200,255,.18);}
+
+  /* ── Mobile: full-width stack ── */
+  @media(max-width:640px){
+    header h1{font-size:13px;letter-spacing:1px;}
+    .corner{display:none;}
+    .main{padding:6px;gap:6px;}
+    .cw{min-width:0;width:100%;padding:6px 6px 4px;}
+    .controls{width:100%;max-height:none;overflow-y:visible;
+      display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+    /* Animate button and frame toggle span full width */
+    .btn, .ctrl:last-child{grid-column:1/-1;}
+    .ct{font-size:7px;letter-spacing:2px;}
+    .sn{font-size:10px;}
+    .sv{font-size:10px;min-width:34px;}
+  }
+  /* ── Tablet ── */
+  @media(min-width:641px) and (max-width:900px){
+    .controls{width:190px;}
+    .corner{font-size:8px;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Orbital Parameters</h1>
+  <div class="badge">ECI · J2000</div>
+  <div class="corner">♈ VERNAL EQUINOX · INERTIAL · DRAG GLOBE TO ROTATE VIEW</div>
+</header>
+
+<div class="main">
+  <div class="cw">
+    <div class="ctitle">Keplerian Elements — drag to rotate · all parameters on one globe</div>
+    <canvas id="cv"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl" style="--al:#ff6a00">
+      <div class="ct">Orbital Plane</div>
+      <div class="sg">
+        <div class="sl"><span class="sn" style="color:#ff6a00">Ω — RAAN</span><span class="sv" id="vRaan">40°</span></div>
+        <input type="range" id="sRaan" min="0" max="360" value="40" style="--thumb:#ff6a00;background:rgba(255,106,0,.18)">
+      </div>
+      <div class="sg">
+        <div class="sl"><span class="sn" style="color:#b0ff4e">i — Inclination</span><span class="sv" id="vInc">63°</span></div>
+        <input type="range" id="sInc" min="0" max="180" value="63" style="--thumb:#b0ff4e;background:rgba(176,255,78,.18)">
+      </div>
+    </div>
+
+    <div class="ctrl" style="--al:#00e5ff">
+      <div class="ct">Satellite State</div>
+      <div class="sg">
+        <div class="sl"><span class="sn" style="color:#ff9900">ω — Arg. Perigee</span><span class="sv" id="vArgp">270°</span></div>
+        <input type="range" id="sArgp" min="0" max="360" value="270" style="--thumb:#ff9900;background:rgba(255,153,0,.18)">
+      </div>
+      <div class="sg">
+        <div class="sl"><span class="sn" style="color:#00e5ff">M — Mean Anomaly</span><span class="sv" id="vMa">180°</span></div>
+        <input type="range" id="sMa" min="0" max="360" value="180" style="--thumb:#00e5ff">
+      </div>
+      <div class="sg">
+        <div class="sl"><span class="sn" style="color:#ff4488">e — Eccentricity</span><span class="sv" id="vEcc">0.74</span></div>
+        <input type="range" id="sEcc" min="0" max="80" value="74" style="--thumb:#ff4488;background:rgba(255,68,136,.18)">
+      </div>
+      <div class="sg">
+        <div class="sl"><span class="sn" style="color:#a0c8ff">h&#x209A; — Perigee Alt</span><span class="sv" id="vAlt">500 km</span></div>
+        <input type="range" id="sAlt" min="10" max="35786" value="500" step="10" style="--thumb:#a0c8ff;background:rgba(160,200,255,.18)">
+      </div>
+    </div>
+
+    <button class="btn" id="animBtn">▶ ANIMATE</button>
+
+    <div class="ctrl" style="--al:#00e5ff">
+      <div class="ct">Animation Speed</div>
+      <div class="sg">
+        <div class="sl"><span class="sn" style="color:#00e5ff">Speed</span><span class="sv" id="vSpeed">100×</span></div>
+        <input type="range" id="sSpeed" min="0" max="8" step="1" value="4" style="--thumb:#00e5ff;background:rgba(0,229,255,.18)">
+        <div style="display:flex;justify-content:space-between;font-size:8px;font-family:'Share Tech Mono',monospace;color:rgba(0,200,255,.45);margin-top:2px;">
+          <span>1×</span><span>10×</span><span>100×</span><span>1k×</span><span>10k×</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctrl" style="--al:#22aaff">
+      <div class="ct">Reference Frame</div>
+      <div style="display:flex;gap:0;border:1px solid rgba(0,200,255,.28);border-radius:2px;overflow:hidden;">
+        <button class="frmbtn active" id="btnECI" onclick="setFrame('ECI')">ECI</button>
+        <button class="frmbtn" id="btnECF" onclick="setFrame('ECF')">ECF</button>
+      </div>
+      <div style="margin-top:8px;font-size:9px;font-family:Share Tech Mono,monospace;color:rgba(160,210,255,.55);line-height:1.5;" id="frameDesc">
+        Orbit fixed in inertial space. Earth rotates beneath it.
+      </div>
+    </div>
+
+    <div class="ctrl" style="--al:#aaaaaa">
+      <div class="ct">Preset Orbits</div>
+      <select id="presetSel" style="width:100%;padding:7px 8px;background:rgba(0,20,40,.85);border:1px solid rgba(0,200,255,.28);border-radius:2px;color:#c0e0ff;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.5px;cursor:pointer;outline:none;">
+        <option value="">— select preset —</option>
+        <option value="iss">ISS (Low Earth)</option>
+        <option value="sso">Sun-Synchronous (SSO)</option>
+        <option value="gps">GPS (MEO)</option>
+        <option value="geo">GEO (Geostationary)</option>
+        <option value="molniya" selected>Molniya</option>
+        <option value="tundra">Tundra</option>
+        <option value="heo">HEO (High Elliptical)</option>
+      </select>
+    </div>
+
+    <div class="ctrl" style="--al:#88ff88">
+      <div class="ct">Features</div>
+      <div style="display:flex;gap:6px;">
+        <button class="frmbtn" id="btnJ2" onclick="J2_ON=!J2_ON;this.classList.toggle('active',J2_ON);draw();" style="flex:1;font-size:10px;">J2 Precession</button>
+        <button class="frmbtn active" id="btnSun" onclick="SUN_ON=!SUN_ON;this.classList.toggle('active',SUN_ON);draw._globeKey=null;draw();" style="flex:1;font-size:10px;">☀ Sun</button>
+      </div>
+      <div class="sl" style="margin-top:8px"><span class="sn" style="color:#00ffa0">Track Persist</span><span class="sv" id="vPersist">1.5 orb</span></div>
+      <input type="range" id="sPersist" min="1" max="12" step="1" value="6" style="--thumb:#00ffa0;background:rgba(0,255,160,.18)">
+      <div style="margin-top:6px;font-size:9px;font-family:Share Tech Mono,monospace;color:rgba(160,210,255,.55);line-height:1.5;">
+        J2: Ω &amp; ω drift from Earth's oblateness.<br>SSO tracks Sun; Molniya ω stays frozen.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Math helpers ──────────────────────────────────────────────────────
+const d2r=d=>d*Math.PI/180, r2d=r=>r*180/Math.PI;
+function keplerE(M,e){
+  let E=M;
+  for(let i=0;i<60;i++){const dE=(M-E+e*Math.sin(E))/(1-e*Math.cos(E));E+=dE;if(Math.abs(dE)<1e-11)break;}
+  return E;
+}
+function nu_from_M(Mdeg,e){
+  const M=d2r(Mdeg),E=keplerE(M,e);
+  return 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2),Math.sqrt(1-e)*Math.cos(E/2));
+}
+// Inverse: true anomaly (radians) → mean anomaly (radians)
+function MA_from_nu(nu, e){
+  const E = 2*Math.atan2(Math.sqrt(1-e)*Math.sin(nu/2), Math.sqrt(1+e)*Math.cos(nu/2));
+  return E - e*Math.sin(E);
+}
+function orb_r(nu,a,e){return a*(1-e*e)/(1+e*Math.cos(nu));}
+
+// ── State ─────────────────────────────────────────────────────────────
+let RAAN=40, INC=63, MA=180, ECC=0.74, ARGP=270;
+let ECF_MODE=false;
+// ECF rotation: Earth completes one revolution per orbital period.
+// We use MA as a proxy for elapsed time: Earth rotates by -MA*(1/ratio) relative to ECI.
+// For simplicity, Earth rotates at same rate as satellite (synodic=1:1 is unrealistic but visual).
+// We store an ECF_OFFSET (radians) that is updated during animation; in static mode we fix it.
+let ECF_OFFSET=0;  // how much Earth (and ECF frame) has rotated, in radians
+
+function setFrame(mode){
+  const wasECF = ECF_MODE;
+  ECF_MODE=(mode==='ECF');
+  // When switching frames, rotate the camera by ±ECF_OFFSET so Earth stays
+  // centered in view. ECI→ECF: camera rotates with Earth (+ECF_OFFSET).
+  // ECF→ECI: camera rotates back (-ECF_OFFSET).
+  if(!wasECF && ECF_MODE)  CAM_AZ -= ECF_OFFSET;   // ECI → ECF
+  if(wasECF  && !ECF_MODE) CAM_AZ += ECF_OFFSET;   // ECF → ECI
+  document.getElementById('btnECI').classList.toggle('active',!ECF_MODE);
+  document.getElementById('btnECF').classList.toggle('active', ECF_MODE);
+  document.getElementById('frameDesc').textContent = ECF_MODE
+    ? 'Earth fixed. Orbit appears to drift westward each pass (~−360°/day).'
+    : 'Orbit fixed in inertial space. Earth rotates beneath it.';
+  document.querySelector('.badge').textContent = ECF_MODE ? 'ECF · ROTATING' : 'ECI · J2000';
+  draw();
+}
+const RE_KM=6371;   // Earth radius km
+let ALT_KM=500;     // perigee altitude km — drives SMA to scale
+let animating=false, raf=null;
+let CAM_AZ=d2r(-30), CAM_EL=d2r(25);
+let ZOOM=1.0;  // zoom multiplier applied to ER
+let LEGEND_OPEN=false; // toggleable HUD panel
+let AXES_OPEN=true;    // toggleable axes widget
+let J2_ON=false;       // J2 oblateness precession
+let SUN_ON=true;       // Sun direction indicator
+let PERSIST=1.5;       // ground track persistence in orbits
+let SUN_LON=0;         // Sun ecliptic longitude (degrees, ECI), advances with sim time
+let PAN_X=0, PAN_Y=0;  // pixel offset for panning (right-click drag)
+
+// ── Camera: orthographic projection from az/el viewpoint ─────────────
+// All 3D coords are in Earth-radii (ER) units.
+// project(X,Y,Z) returns [screenX, screenY, depth]
+//   screenX/Y are in ER units (multiply by ER px to get pixels from centre)
+//   depth > 0 means farther from viewer (behind)
+let CAM = {};
+function updateCam(){
+  const ca=Math.cos(CAM_AZ), sa=Math.sin(CAM_AZ);
+  const ce=Math.cos(CAM_EL), se=Math.sin(CAM_EL);
+  // Camera looks from (ce*ca, ce*sa, se) toward origin
+  // V = view direction INTO screen = (-ce*ca, -ce*sa, -se)
+  const Vx=-ce*ca, Vy=-ce*sa, Vz=-se;
+  // R = right = normalise(cross([0,0,1], V))  [note order: Z cross V]
+  let Rx=Vy, Ry=-Vx;  // = cross([0,0,1],[Vx,Vy,Vz]) = (Vy, -Vx, 0) -- wait:
+  // cross(A,B): Ax=0,Ay=0,Az=1  Bx=Vx,By=Vy,Bz=Vz
+  // = (Ay*Bz-Az*By, Az*Bx-Ax*Bz, Ax*By-Ay*Bx) = (-Vy, Vx, 0)
+  // But we want camera-right pointing screen-right, so:
+  // Right = cross(V, Z) = cross([Vx,Vy,Vz],[0,0,1]) = (Vy*1-Vz*0, Vz*0-Vx*1, Vx*0-Vy*0) = (Vy,-Vx,0)
+  const Rlen=Math.sqrt(Rx*Rx+Ry*Ry);
+  if(Rlen>1e-6){Rx/=Rlen;Ry/=Rlen;}else{Rx=1;Ry=0;}
+  const Rz=0;
+  // U = up = cross(V, R)  [right-hand: cross(view,right) = up into screen... 
+  // Actually: up = cross(R, V) so that R,U,V form right-hand system]
+  // U = cross(R, V):
+  const Ux=Ry*Vz-Rz*Vy, Uy=Rz*Vx-Rx*Vz, Uz=Rx*Vy-Ry*Vx;
+  CAM={Rx,Ry,Rz,Ux,Uy,Uz,Vx,Vy,Vz};
+}
+
+function project(X,Y,Z){
+  const {Rx,Ry,Rz,Ux,Uy,Uz,Vx,Vy,Vz}=CAM;
+  const sx   =  X*Rx + Y*Ry + Z*Rz;
+  const sy   = -(X*Ux + Y*Uy + Z*Uz);   // flip so +Y = up on screen
+  const depth=  X*Vx + Y*Vy + Z*Vz;     // +depth = farther from viewer
+  return [sx, sy, depth];
+}
+
+// A point P (in ER units) is occluded by Earth (radius 1 ER, centred at origin) iff:
+//   depth > 0   (on the far side from viewer)
+//   AND  sx²+sy² < 1   (inside Earth's circular silhouette on screen)
+// Because the Earth is a unit sphere, its projected disk has radius 1 in sx/sy units.
+function isBehind(X,Y,Z){
+  const [sx,sy,depth]=project(X,Y,Z);
+  return depth>0 && sx*sx+sy*sy<1.0;
+}
+
+// ── Canvas / scale ────────────────────────────────────────────────────
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let ER=110, SMA=250;
+let cx0=0, cy0=0;
+
+function scr(X,Y,Z){
+  const [sx,sy]=project(X,Y,Z);
+  return [cx0+sx*ER, cy0+sy*ER];
+}
+
+// Orbit point in ECI (ER units): theta=true anomaly, r=radius in pixels
+// ARGP (argument of perigee ω) rotates perigee within the orbital plane.
+// raanOverride: if provided, use instead of global RAAN (for ECF frame).
+function orbECI(theta, rpx, raanOverride){
+  const raanR=d2r(raanOverride!==undefined ? raanOverride : RAAN), incR=d2r(INC), argpR=d2r(ARGP);
+  const cR=Math.cos(raanR), sR=Math.sin(raanR);
+  const cI=Math.cos(incR),  sI=Math.sin(incR);
+  // Node-aligned basis (ascending node = +P0 direction)
+  const P0x=cR,  P0y=sR,  P0z=0;
+  const Q0x=-sR*cI, Q0y=cR*cI, Q0z=sI;
+  // Rotate by ω within orbital plane to get perigee-aligned basis
+  const cW=Math.cos(argpR), sW=Math.sin(argpR);
+  const Px=cW*P0x+sW*Q0x, Py=cW*P0y+sW*Q0y, Pz=cW*P0z+sW*Q0z;
+  const Qx=-sW*P0x+cW*Q0x, Qy=-sW*P0y+cW*Q0y, Qz=-sW*P0z+cW*Q0z;
+  const ct=Math.cos(theta), st=Math.sin(theta);
+  const r=rpx/ER;
+  return [r*(ct*Px+st*Qx), r*(ct*Py+st*Qy), r*(ct*Pz+st*Qz)];
+}
+// orbScr uses RAAN_draw if available (set in draw()), else global RAAN
+let _RAAN_draw = undefined;
+function orbScr(theta, rpx){
+  return scr(...orbECI(theta, rpx, _RAAN_draw));
+}
+
+// Project a globe surface point (lon, lat in radians) with ECF rotation applied.
+// ecfOff rotates Earth's surface: lon_ecf = lon + ecfOff
+function scrGlobe(lonR, latR, ecfOff){
+  const lon2 = lonR + ecfOff;
+  const X=Math.cos(latR)*Math.cos(lon2);
+  const Y=Math.cos(latR)*Math.sin(lon2);
+  const Z=Math.sin(latR);
+  return scr(X,Y,Z);
+}
+// Is a globe surface point behind Earth? (for equatorial ring depth sort)
+function globeBehind(lonR, latR, ecfOff){
+  const lon2 = lonR + ecfOff;
+  const X=Math.cos(latR)*Math.cos(lon2);
+  const Y=Math.cos(latR)*Math.sin(lon2);
+  const Z=Math.sin(latR);
+  return isBehind(X,Y,Z);
+}
+
+function drawArrow(x1,y1,x2,y2,color,lw=1.5,dash=[]){
+  ctx.save();
+  ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.setLineDash([]);
+  const ang=Math.atan2(y2-y1,x2-x1);
+  ctx.fillStyle=color; ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-10*Math.cos(ang-.38), y2-10*Math.sin(ang-.38));
+  ctx.lineTo(x2-10*Math.cos(ang+.38), y2-10*Math.sin(ang+.38));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// Draw a set of 3D points in two passes: back (dashed) then front (solid).
+// points = array of [X,Y,Z] in ER units (already computed).
+// Contiguous runs that share the same front/back state form one sub-path.
+function drawOrbit3D(points, backColor, frontColor, lw){
+  // Two passes
+  for(let pass=0; pass<2; pass++){
+    const wantBack=(pass===0);
+    if(wantBack){ ctx.save(); ctx.setLineDash([6,5]); ctx.strokeStyle=backColor; }
+    else { ctx.strokeStyle=frontColor; }
+    ctx.lineWidth=lw;
+    let inSeg=false;
+    for(let i=0;i<points.length;i++){
+      const [X,Y,Z]=points[i];
+      const behind=isBehind(X,Y,Z);
+      if(behind===wantBack){
+        const [px,py]=scr(X,Y,Z);
+        if(!inSeg){ ctx.beginPath(); ctx.moveTo(px,py); inSeg=true; }
+        else ctx.lineTo(px,py);
+      } else {
+        if(inSeg){ ctx.stroke(); inSeg=false; }
+      }
+    }
+    if(inSeg) ctx.stroke();
+    if(wantBack){ ctx.setLineDash([]); ctx.restore(); }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+function draw(){
+  // Apply zoom: scale ER by ZOOM factor
+  ER = Math.min(cv.getBoundingClientRect().width*.19, 120) * ZOOM;
+  updateCam();
+  // ECF_OFFSET rotates Earth's surface features (grid, equator) around Z-axis.
+  // Orbit, ♈, RAAN arc, etc. are ECI-fixed and never rotate.
+  // In ECF mode the globe spins under the fixed orbit — the opposite of ECI view.
+  // ECI mode: Earth spins under fixed orbit → rotate globe by ECF_OFFSET
+  // ECF mode: Earth fixed, orbit drifts west → no globe rotation, shift orbit RAAN
+  const ecfOff = ECF_MODE ? 0 : ECF_OFFSET;
+
+  // ALT_KM is perigee altitude. Compress perigee and apogee radii independently
+  // so the orbit shape stays physically consistent with the displayed Earth size.
+  // True radii in km:
+  //   r_peri = Re + hp
+  //   r_apo  = (Re + hp)*(1+e)/(1-e)
+  // Apply the same display compression to each, derive display a and e from those.
+  let ECC_d, SMA_d;
+  {
+    function displayR(rKm){
+      // Convert a true orbital radius (km) to display pixels.
+      const ratio = rKm / RE_KM;
+      const maxDisplayRatio = 3.8, breakRatio = 1.31;
+      let dr;
+      if(ratio <= breakRatio){
+        dr = ratio;
+      } else {
+        const t = Math.min(1, (ratio - breakRatio) / (6.62 - breakRatio));
+        dr = breakRatio + (maxDisplayRatio - breakRatio) * Math.sqrt(t);
+      }
+      return ER * dr;
+    }
+    const rPeriKm = RE_KM + ALT_KM;
+    const rApoKm  = rPeriKm * (1 + ECC) / Math.max(0.001, 1 - ECC);
+    const rPeriDisp = displayR(rPeriKm);
+    const rApoDisp  = displayR(rApoKm);
+    SMA_d = (rPeriDisp + rApoDisp) / 2;
+    ECC_d = (rApoDisp + rPeriDisp) > 0 ? (rApoDisp - rPeriDisp) / (rApoDisp + rPeriDisp) : 0;
+    SMA = SMA_d;  // keep SMA in sync for legacy references
+  }
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.width/dpr, H=cv.height/dpr;
+  ctx.clearRect(0,0,cv.width,cv.height);
+
+  // dot grid
+  ctx.fillStyle='rgba(0,150,220,.04)';
+  for(let x=0;x<cv.width;x+=28) for(let y=0;y<cv.height;y+=28) ctx.fillRect(x,y,1,1);
+
+  // Centre globe: on mobile use 50% (no side panel); on desktop offset right slightly
+  const isMob=(W<641);
+  cx0=W*(isMob?0.50:0.54)+PAN_X; cy0=H*.50+PAN_Y;
+  const e=ECC_d, a=SMA_d;   // display-space orbital shape (perigee/apogee compressed correctly)
+  // In ECF mode, Earth has rotated by ECF_OFFSET, so the orbit drifts west by that amount.
+  // Shift the orbital RAAN by -ECF_OFFSET for all orbital drawing in ECF mode.
+  const RAAN_draw = ECF_MODE ? RAAN - r2d(ECF_OFFSET) : RAAN;
+  _RAAN_draw = RAAN_draw;   // make available to orbScr()
+  const raanR=d2r(RAAN_draw), incR=d2r(INC);
+
+  // Pre-compute orbit points (361 so the loop closes perfectly)
+  const orbitPts=[];
+  for(let i=0;i<=360;i++){
+    const th=d2r(i), r=orb_r(th,a,e);
+    orbitPts.push(orbECI(th,r,RAAN_draw));
+  }
+
+  // ── 1. Orbit back half (dashed, behind Earth) ───────────────────────
+  // drawn BEFORE Earth so Earth paints over it
+  {
+    ctx.save(); ctx.setLineDash([6,5]);
+    ctx.strokeStyle='rgba(0,200,255,.28)'; ctx.lineWidth=2;
+    let inSeg=false;
+    for(let i=0;i<=360;i++){
+      const [X,Y,Z]=orbitPts[i];
+      if(isBehind(X,Y,Z)){
+        const [px,py]=scr(X,Y,Z);
+        if(!inSeg){ ctx.beginPath(); ctx.moveTo(px,py); inSeg=true; }
+        else ctx.lineTo(px,py);
+      } else {
+        if(inSeg){ ctx.stroke(); inSeg=false; }
+      }
+    }
+    if(inSeg) ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // ── 2. Earth globe ──────────────────────────────────────────────────
+  {
+    // Sun direction in ECI camera-space components
+    const ob=d2r(23.44), sl=d2r(SUN_LON);
+    const SX = SUN_ON ? Math.cos(sl)              : -0.26;
+    const SY = SUN_ON ? Math.sin(sl)*Math.cos(ob) : -0.28;
+    const SZ = SUN_ON ? Math.sin(sl)*Math.sin(ob) : 0.10;
+    // Sun in camera space: Rx=right, Ux=up, Vx=into-screen
+    const sCx =  SX*CAM.Rx + SY*CAM.Ry + SZ*CAM.Rz;   // screen-right
+    const sCy =  SX*CAM.Ux + SY*CAM.Uy + SZ*CAM.Uz;   // screen-up
+    const sCz =-(SX*CAM.Vx + SY*CAM.Vy + SZ*CAM.Vz);  // toward viewer (negate depth)
+
+    // ── Cached Lambert offscreen buffer ──────────────────────────────
+    // Recompute only when ER or sun/camera direction changes
+    const cacheKey = [Math.round(ER), sCx.toFixed(3), sCy.toFixed(3), sCz.toFixed(3), SUN_ON?1:0].join(',');
+    if(draw._globeKey !== cacheKey){
+      draw._globeKey = cacheKey;
+      const iR = Math.ceil(ER)+1;
+      const sz = iR*2+2;
+      if(!draw._globeCanvas){ draw._globeCanvas = document.createElement('canvas'); }
+      draw._globeCanvas.width = sz; draw._globeCanvas.height = sz;
+      const oc = draw._globeCanvas.getContext('2d');
+      const imgd = oc.createImageData(sz, sz);
+      const buf = imgd.data;
+      const ER2 = ER*ER;
+      for(let row=0; row<sz; row++){
+        const dy = row - iR;
+        const dy2 = dy*dy;
+        if(dy2 > ER2) continue;
+        for(let col=0; col<sz; col++){
+          const dx = col - iR;
+          if(dx*dx + dy2 > ER2) continue;
+          // Surface normal in camera space: nx=right, ny=up, nz=toward viewer
+          const nx =  dx / ER;
+          const ny =  dy / ER;   // canvas y DOWN = camera DOWN = negative up, but negate both to get normal toward viewer
+          const nz2 = 1 - nx*nx - ny*ny;
+          if(nz2 <= 0) continue;
+          const nz = Math.sqrt(nz2);
+          // Lambert: dot(normal, sunDir) in camera space
+          const lam = Math.max(0, nx*sCx - ny*sCy + nz*sCz);
+          // Limb darkening
+          const limb = nz * nz;
+          let r, g, b;
+          if(SUN_ON){
+            // Day: bright blue-white; night: near-black
+            r = Math.round((8  + lam*180) * (0.3 + 0.7*limb));
+            g = Math.round((20 + lam*190) * (0.3 + 0.7*limb));
+            b = Math.round((55 + lam*200) * (0.3 + 0.7*limb));
+            // Specular
+            const spec = Math.pow(lam, 18)*60;
+            r = Math.min(255, r + spec);
+            g = Math.min(255, g + spec);
+            b = Math.min(255, b + spec);
+          } else {
+            // Sun off: near-black, just enough blue to distinguish from space
+            r = Math.round(4  * limb);
+            g = Math.round(8  * limb);
+            b = Math.round(22 * limb);
+          }
+          const idx = (row*sz + col)*4;
+          buf[idx+0] = r;
+          buf[idx+1] = g;
+          buf[idx+2] = b;
+          buf[idx+3] = 255;  // always fully opaque
+        }
+      }
+      oc.putImageData(imgd, 0, 0);
+    }
+
+    // Blit cached globe
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx0,cy0,ER,0,Math.PI*2); ctx.clip();
+    const iR = Math.ceil(ER)+1;
+    ctx.drawImage(draw._globeCanvas, cx0-iR, cy0-iR);
+    ctx.restore();
+
+    // Edge stroke
+    ctx.beginPath(); ctx.arc(cx0,cy0,ER,0,Math.PI*2);
+    ctx.strokeStyle='rgba(60,160,255,.28)'; ctx.lineWidth=1.5; ctx.stroke();
+
+    // lat/lon grid — front half bright, rear half dimmed
+    // Each line is split segment-by-segment based on depth of each point.
+    // Points with depth>0 are on the far hemisphere (behind Earth centre plane).
+    ctx.save(); ctx.beginPath(); ctx.arc(cx0,cy0,ER,0,Math.PI*2); ctx.clip();
+
+    function drawGridLine(pts, frontStyle, backStyle, lw){
+      // Two passes: dim (back) then bright (front), so front paints over crossings
+      for(let pass=0;pass<2;pass++){
+        const wantFront=(pass===1);
+        ctx.strokeStyle=wantFront?frontStyle:backStyle;
+        ctx.lineWidth=lw;
+        let inSeg=false;
+        for(let i=0;i<pts.length;i++){
+          const [px,py,depth]=pts[i];
+          const isFront=(depth<=0);
+          if(isFront===wantFront){
+            if(!inSeg){ctx.beginPath();ctx.moveTo(px,py);inSeg=true;}
+            else ctx.lineTo(px,py);
+          } else {
+            if(inSeg){ctx.stroke();inSeg=false;}
+          }
+        }
+        if(inSeg) ctx.stroke();
+      }
+    }
+
+    // Latitude rings
+    for(let lat=-60;lat<=60;lat+=30){
+      const ltR=d2r(lat);
+      const isTropic=(lat===0);
+      const pts=[];
+      for(let lon=0;lon<=360;lon+=2){
+        const lon2=d2r(lon)+ecfOff;
+        const X=Math.cos(ltR)*Math.cos(lon2), Y=Math.cos(ltR)*Math.sin(lon2), Z=Math.sin(ltR);
+        const [px,py,depth]=project(X,Y,Z);
+        pts.push([cx0+px*ER, cy0+py*ER, depth]);
+      }
+      if(isTropic){
+        // Equator latitude ring is drawn separately as the equatorial ring — skip here
+        drawGridLine(pts,'rgba(255,160,0,.55)','rgba(255,160,0,.10)',1.8);
+      } else {
+        drawGridLine(pts,'rgba(120,190,255,.22)','rgba(120,190,255,.06)',.9);
+      }
+    }
+
+    // Longitude lines
+    for(let lon=0;lon<360;lon+=30){
+      const pts=[];
+      for(let lat=-88;lat<=88;lat+=2){
+        const ltR=d2r(lat), lon2=d2r(lon)+ecfOff;
+        const X=Math.cos(ltR)*Math.cos(lon2), Y=Math.cos(ltR)*Math.sin(lon2), Z=Math.sin(ltR);
+        const [px,py,depth]=project(X,Y,Z);
+        pts.push([cx0+px*ER, cy0+py*ER, depth]);
+      }
+      drawGridLine(pts,'rgba(120,190,255,.18)','rgba(120,190,255,.05)',.9);
+    }
+
+    ctx.restore();
+    // Lat labels — only on front hemisphere
+    [-60,-30,30,60].forEach(lat=>{
+      const ltR=d2r(lat), lon2=ecfOff;
+      const X=Math.cos(ltR)*Math.cos(lon2), Y=Math.cos(ltR)*Math.sin(lon2), Z=Math.sin(ltR);
+      const [,,depth]=project(X,Y,Z);
+      if(depth<=0){
+        const [px,py]=scrGlobe(0,ltR,ecfOff);
+        ctx.fillStyle='rgba(120,190,255,.50)'; ctx.font='8px Share Tech Mono,monospace';
+        ctx.fillText((lat>0?'+':'')+lat+'°', px+ER*.02+3, py+3);
+      }
+    });
+  }
+
+  // ── 3. Equatorial ring — rotated by ecfOff (Earth surface feature) ──
+  for(let pass=0;pass<2;pass++){
+    const wantBack=(pass===0);
+    if(wantBack){ctx.save();ctx.setLineDash([6,5]);ctx.strokeStyle='rgba(255,160,0,.30)';}
+    else ctx.strokeStyle='rgba(255,160,0,.90)';
+    ctx.lineWidth=2.2;
+    let inSeg=false;
+    for(let lon=0;lon<=360;lon++){
+      const behind=globeBehind(d2r(lon),0,ecfOff);
+      if(behind===wantBack){
+        const [px,py]=scrGlobe(d2r(lon),0,ecfOff);
+        if(!inSeg){ctx.beginPath();ctx.moveTo(px,py);inSeg=true;}
+        else ctx.lineTo(px,py);
+      } else { if(inSeg){ctx.stroke();inSeg=false;} }
+    }
+    if(inSeg) ctx.stroke();
+    if(wantBack){ctx.setLineDash([]);ctx.restore();}
+  }
+  // EQUATOR label — anchor at lon=180 in ECF frame
+  {
+    const [elx,ely]=scrGlobe(d2r(180),0,ecfOff);
+    ctx.fillStyle='rgba(255,160,0,.55)'; ctx.font='10px Share Tech Mono,monospace';
+    ctx.fillText('EQUATOR',elx+4,ely-5);
+  }
+
+  // ── 3b. Prime Meridian arc — ECF surface feature (lon=0°, rotates with Earth) ──
+  // Drawn as a meridian on the globe, clearly an Earth-fixed feature.
+  // Color: amber-gold, dimmer than ♈ arrow so they're visually distinct.
+  {
+    const pmCol      = 'rgba(255,210,80,.75)';
+    const pmColBack  = 'rgba(255,210,80,.18)';
+    const pmColDash  = 'rgba(255,210,80,.22)';
+    for(let pass=0;pass<2;pass++){
+      const wantBack=(pass===0);
+      if(wantBack){ ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle=pmColDash; }
+      else ctx.strokeStyle=pmCol;
+      ctx.lineWidth=wantBack?1:1.8;
+      let inSeg=false;
+      for(let lat=-88;lat<=88;lat+=2){
+        const behind=globeBehind(0, d2r(lat), ecfOff);
+        if(behind===wantBack){
+          const [px,py]=scrGlobe(0, d2r(lat), ecfOff);
+          if(!inSeg){ ctx.beginPath(); ctx.moveTo(px,py); inSeg=true; }
+          else ctx.lineTo(px,py);
+        } else { if(inSeg){ ctx.stroke(); inSeg=false; } }
+      }
+      if(inSeg) ctx.stroke();
+      if(wantBack){ ctx.setLineDash([]); ctx.restore(); }
+    }
+    // Small dot at intersection with equator (0°lon, 0°lat)
+    const [dotX,dotY]=scrGlobe(0,0,ecfOff);
+    const [,, dotDepth]=project(
+      Math.cos(ecfOff), Math.sin(ecfOff), 0
+    );
+    const onFront = dotDepth <= 0;
+    ctx.beginPath(); ctx.arc(dotX,dotY,4,0,Math.PI*2);
+    ctx.fillStyle=onFront?'rgba(255,210,80,.90)':'rgba(255,210,80,.20)'; ctx.fill();
+    // Label — only when facing viewer
+    if(onFront){
+      ctx.fillStyle='rgba(255,210,80,.70)'; ctx.font='9px Share Tech Mono,monospace';
+      ctx.fillText('0\xb0 lon',dotX+6,dotY+3);
+    }
+  }
+
+
+  {
+    ctx.save(); ctx.strokeStyle='rgba(255,160,64,.85)'; ctx.lineWidth=2.2;
+    let started=false;
+    for(let lon=200;lon<=258;lon++){
+      const behind=globeBehind(d2r(lon),0,ecfOff);
+      if(!behind){
+        const [px,py]=scrGlobe(d2r(lon),0,ecfOff);
+        if(!started){ ctx.beginPath(); ctx.moveTo(px,py); started=true; }
+        else ctx.lineTo(px,py);
+      }
+    }
+    if(started) ctx.stroke();
+    const [a1x,a1y]=scrGlobe(d2r(258),0,ecfOff);
+    const [a0x,a0y]=scrGlobe(d2r(254),0,ecfOff);
+    const aang=Math.atan2(a1y-a0y,a1x-a0x);
+    ctx.fillStyle='rgba(255,160,64,.88)';
+    ctx.beginPath(); ctx.moveTo(a1x,a1y);
+    ctx.lineTo(a1x-9*Math.cos(aang-.4), a1y-9*Math.sin(aang-.4));
+    ctx.lineTo(a1x-9*Math.cos(aang+.4), a1y-9*Math.sin(aang+.4));
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,160,64,.60)'; ctx.font='10px Share Tech Mono,monospace';
+    ctx.fillText('ECF spin',a1x+5,a1y+4);
+    ctx.restore();
+  }
+
+  // ── 4. Vernal Equinox ♈ ────────────────────────────────────────────
+  {
+    const [vx,vy]=scr(0,0,0), [v2x,v2y]=scr(2.3,0,0);
+    drawArrow(vx,vy,v2x,v2y,'rgba(255,230,0,.80)',1.5,[4,4]);
+    ctx.fillStyle='rgba(255,230,0,.88)'; ctx.font='bold 12px Rajdhani,sans-serif';
+    ctx.fillText('\u2648 Vernal Equinox',v2x+6,v2y+4);
+
+    // Yellow dot where ♈ direction meets the equator (unit sphere at X=1,Y=0,Z=0)
+    // In ECF mode the globe rotates, but this point is ECI-fixed, so always at lon=0 ECI.
+    const [,, dotDepth]=project(1,0,0);
+    const [dpx,dpy]=scr(1,0,0);
+    const onGlobe=(dotDepth<=0);  // in front of Earth centre plane
+    ctx.save();
+    ctx.beginPath(); ctx.arc(dpx,dpy,5.5,0,Math.PI*2);
+    ctx.fillStyle=onGlobe?'rgba(255,230,0,.95)':'rgba(255,230,0,.30)';
+    ctx.fill();
+    ctx.strokeStyle=onGlobe?'rgba(255,200,0,.70)':'rgba(255,230,0,.15)';
+    ctx.lineWidth=1.2; ctx.stroke();
+    // Glow ring
+    if(onGlobe){
+      ctx.beginPath(); ctx.arc(dpx,dpy,9,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,230,0,.25)'; ctx.lineWidth=2; ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ── 5. North pole axis ──────────────────────────────────────────────
+  {
+    const [p0x,p0y]=scr(0,0,.92), [p1x,p1y]=scr(0,0,1.65);
+    drawArrow(p0x,p0y,p1x,p1y,'rgba(180,220,255,.40)',1.2,[3,4]);
+    ctx.fillStyle='rgba(180,220,255,.45)'; ctx.font='10px Share Tech Mono,monospace';
+    ctx.fillText('N',p1x+3,p1y);
+  }
+
+  // ── 6. RAAN arc — sweeps the reflex arc (360°-Ω) from ascending node back to ♈ ──
+  {
+    const arcStart = RAAN_draw;
+    const arcEnd   = 360;
+    const span     = arcEnd - arcStart;
+    const n = Math.max(2, Math.round(Math.abs(span)));
+    for(let pass=0;pass<2;pass++){
+      const wantBack=(pass===0);
+      if(wantBack){ ctx.save(); ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(255,106,0,.35)'; }
+      else ctx.strokeStyle='#ff6a00';
+      ctx.lineWidth=wantBack?1.8:3;
+      let inSeg=false;
+      for(let i=0;i<=n;i++){
+        const lon=d2r(arcStart + span/n*i);
+        const X=Math.cos(lon), Y=Math.sin(lon);
+        const behind=isBehind(X,Y,0);
+        if(behind===wantBack){
+          const [px,py]=scr(X,Y,0);
+          if(!inSeg){ctx.beginPath();ctx.moveTo(px,py);inSeg=true;}
+          else ctx.lineTo(px,py);
+        } else { if(inSeg){ctx.stroke();inSeg=false;} }
+      }
+      if(inSeg) ctx.stroke();
+      if(wantBack){ ctx.setLineDash([]); ctx.restore(); }
+    }
+    const midLon = d2r(arcStart + span/2);
+    const [mlx,mly]=scr(1.22*Math.cos(midLon), 1.22*Math.sin(midLon), 0);
+    ctx.fillStyle='#ff8840'; ctx.font='bold 13px Rajdhani,sans-serif';
+    ctx.fillText('\u03a9='+Math.round(RAAN)+'\xb0',mlx-10,mly-5);
+  }
+
+  // ── 7. Ascending node ☊ ─────────────────────────────────────────────
+  {
+    const [anx,any]=scr(Math.cos(raanR), Math.sin(raanR), 0);
+    ctx.beginPath(); ctx.arc(anx,any,7,0,Math.PI*2);
+    ctx.fillStyle='#b0ff4e'; ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle='#b0ff4e'; ctx.font='bold 11px Rajdhani,sans-serif';
+    ctx.fillText('\u262a Asc. Node (\u03a9)',anx+9,any+14);
+  }
+
+  // Pre-compute ground track (unit-sphere projections) — used by both the
+  // inclination arc (section 8) and the ground track drawing (section 10c).
+  const gtPts = [];
+  for(let i=0;i<=360;i++){
+    const th=d2r(i), r=orb_r(th,a,e);
+    const [X,Y,Z]=orbECI(th,r,RAAN_draw);
+    const mag=Math.sqrt(X*X+Y*Y+Z*Z);
+    gtPts.push([X/mag, Y/mag, Z/mag]);
+  }
+
+  // ── 8. Inclination annotation ────────────────────────────────────────
+  // Sweep from the equator to the ground track, both from the ascending node.
+  // One endpoint walks along the equator, the other along gtPts (ground track).
+  {
+    const cR=Math.cos(raanR), sR=Math.sin(raanR);
+    const arcR=28;
+    const [anx,any]=scr(cR, sR, 0);  // ascending node screen pos (unit sphere)
+
+    // ── Equator endpoint: walk forward along equator from node ──
+    let eqPx=anx, eqPy=any;
+    for(let deg=1;deg<=90;deg++){
+      const lon=raanR+d2r(deg);
+      const [px,py]=scr(Math.cos(lon),Math.sin(lon),0);
+      const dist=Math.hypot(px-anx,py-any);
+      if(dist>=arcR){
+        const [px0,py0]=scr(Math.cos(raanR+d2r(deg-1)),Math.sin(raanR+d2r(deg-1)),0);
+        const d0=Math.hypot(px0-anx,py0-any);
+        const t=(arcR-d0)/Math.max(0.001,dist-d0);
+        eqPx=px0+(px-px0)*t; eqPy=py0+(py-py0)*t;
+        break;
+      }
+    }
+
+    // ── Ground track endpoint: walk forward along gtPts from ascending node ──
+    // gtPts[i] corresponds to true anomaly = i degrees (0-360).
+    // Ascending node is at true anomaly = (-ARGP + 360) % 360.
+    const nodeIdx = Math.round((((-ARGP) % 360) + 360) % 360);
+    let gtPx=anx, gtPy=any;
+    for(let step=1;step<=90;step++){
+      const idx=(nodeIdx+step)%361;
+      const [X,Y,Z]=gtPts[idx];
+      const [px,py]=scr(X,Y,Z);
+      const dist=Math.hypot(px-anx,py-any);
+      if(dist>=arcR){
+        const idx0=(nodeIdx+step-1)%361;
+        const [X0,Y0,Z0]=gtPts[idx0];
+        const [px0,py0]=scr(X0,Y0,Z0);
+        const d0=Math.hypot(px0-anx,py0-any);
+        const t=(arcR-d0)/Math.max(0.001,dist-d0);
+        gtPx=px0+(px-px0)*t; gtPy=py0+(py-py0)*t;
+        break;
+      }
+    }
+
+    // Arc: interpolate between eqP and gtP, keeping each point at arcR from node
+    const N=20;
+    ctx.strokeStyle='rgba(176,255,78,.68)'; ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(let ii=0;ii<=N;ii++){
+      const t=ii/N;
+      const ix=(eqPx-anx)*(1-t)+(gtPx-anx)*t;
+      const iy=(eqPy-any)*(1-t)+(gtPy-any)*t;
+      const len=Math.hypot(ix,iy)||1;
+      const px=anx+ix/len*arcR, py=any+iy/len*arcR;
+      ii===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+
+    // Label pushed outward at arc midpoint
+    const dx=(eqPx+gtPx)/2-anx, dy=(eqPy+gtPy)/2-any;
+    const dl=Math.hypot(dx,dy)||1;
+    ctx.fillStyle='#b0ff4e'; ctx.font='bold 11px Rajdhani,sans-serif';
+    ctx.fillText('i='+Math.round(INC)+'\xb0', anx+dx/dl*arcR*1.6-8, any+dy/dl*arcR*1.6+4);
+  }
+
+  // ── 9. Orbit front half (solid) ─────────────────────────────────────
+  {
+    ctx.strokeStyle='rgba(0,200,255,.78)'; ctx.lineWidth=2.2;
+    let inSeg=false;
+    for(let i=0;i<=360;i++){
+      const [X,Y,Z]=orbitPts[i];
+      if(!isBehind(X,Y,Z)){
+        const [px,py]=scr(X,Y,Z);
+        if(!inSeg){ ctx.beginPath(); ctx.moveTo(px,py); inSeg=true; }
+        else ctx.lineTo(px,py);
+      } else {
+        if(inSeg){ ctx.stroke(); inSeg=false; }
+      }
+    }
+    if(inSeg) ctx.stroke();
+  }
+
+  // ── 10. Perigee marker ──────────────────────────────────────────────
+  {
+    const [pgx,pgy]=orbScr(0, orb_r(0,a,e));
+    ctx.beginPath(); ctx.arc(pgx,pgy,6,0,Math.PI*2); ctx.fillStyle='#ff4488'; ctx.fill();
+    ctx.fillStyle='#ff4488'; ctx.font='bold 11px Rajdhani,sans-serif';
+    ctx.fillText('Perigee',pgx+8,pgy-4);
+  }
+
+  // ── 10b. Argument of perigee arc (ω) ────────────────────────────────
+  // Draw arc from ascending node direction to perigee direction, within orbital plane
+  if(ARGP > 1){
+    const arcR = SMA * 0.28;
+    const n = Math.max(2, Math.round(Math.abs(ARGP)));
+    ctx.strokeStyle = 'rgba(255,153,0,.80)'; ctx.lineWidth = 2;
+    ctx.beginPath(); let fw = true;
+    for(let ii=0; ii<=n; ii++){
+      // sweep from 0 (ascending node) to ARGP within orbital plane
+      // Use orbECI with ARGP=0 temporarily by overriding: just rotate within plane
+      const th = d2r(ARGP/n*ii);
+      // point at angle th from ascending node, in orbital plane (using node-basis)
+      const raanR2=d2r(RAAN_draw), incR2=d2r(INC);
+      const cR2=Math.cos(raanR2),sR2=Math.sin(raanR2),cI2=Math.cos(incR2),sI2=Math.sin(incR2);
+      const P0x=cR2,P0y=sR2,P0z=0;
+      const Q0x=-sR2*cI2,Q0y=cR2*cI2,Q0z=sI2;
+      const rU=arcR/ER;
+      const X=rU*(Math.cos(th)*P0x+Math.sin(th)*Q0x);
+      const Y=rU*(Math.cos(th)*P0y+Math.sin(th)*Q0y);
+      const Z=rU*(Math.cos(th)*P0z+Math.sin(th)*Q0z);
+      const [px,py]=scr(X,Y,Z);
+      fw?ctx.moveTo(px,py):ctx.lineTo(px,py); fw=false;
+    }
+    ctx.stroke();
+    // label near end of arc (close to perigee)
+    const thMid=d2r(ARGP*0.88);
+    const raanR2=d2r(RAAN_draw),incR2=d2r(INC);
+    const cR2=Math.cos(raanR2),sR2=Math.sin(raanR2),cI2=Math.cos(incR2),sI2=Math.sin(incR2);
+    const P0x=cR2,P0y=sR2,P0z=0;
+    const Q0x=-sR2*cI2,Q0y=cR2*cI2,Q0z=sI2;
+    const rU2=(arcR*1.1)/ER;
+    const [wlx,wly]=scr(
+      rU2*(Math.cos(thMid)*P0x+Math.sin(thMid)*Q0x),
+      rU2*(Math.cos(thMid)*P0y+Math.sin(thMid)*Q0y),
+      rU2*(Math.cos(thMid)*P0z+Math.sin(thMid)*Q0z)
+    );
+    ctx.fillStyle='rgba(255,153,0,.90)'; ctx.font='bold 11px Rajdhani,sans-serif';
+    ctx.fillText('\u03c9='+Math.round(ARGP)+'\xb0',wlx+2,wly-2);
+  }
+
+  // ── 10c. Ground track ─────────────────────────────────────────────────
+  // One full orbit, alpha proportional to recency — max at current sat position,
+  // fading to 0 at the point half an orbit away in either direction.
+  // In ECF mode, each point is rotated by the Earth rotation that occurred
+  // between that point's time and now (so the track drifts correctly westward).
+  {
+    const nuNow = nu_from_M(MA, e);   // current true anomaly (radians)
+    const T_sec = 2*Math.PI*Math.sqrt(a*a*a / 398600) * ER*ER*ER / (ER*ER*ER); // use pre-computed a in ER
+    // Recompute T_sec properly in km
+    const aKm = (RE_KM + ALT_KM) / (1 - ECC);
+    const T_s  = 2*Math.PI*Math.sqrt(aKm**3 / 398600);
+    const earthRotRate = 2*Math.PI / 86164; // rad/s
+
+    // Build recency-faded track: cover PERSIST orbits behind current position
+    const STEPS = Math.round(720 * PERSIST);
+    // We need to walk from nuNow back PERSIST orbits (PERSIST*2π radians)
+    const trkPts = [];
+    for(let i=0; i<=STEPS; i++){
+      const th = nuNow - (i / STEPS) * PERSIST * 2*Math.PI;  // walk backwards from current
+      const r  = orb_r(th, a, e);
+
+      // dTh is always 0..3π going back — fade from 1 at i=0 to 0 at i=STEPS
+      const frac = i / STEPS;  // 0=current, 1=1.5 orbits back
+      const alpha = 0.5*(1 + Math.cos(frac * Math.PI));
+
+      let X, Y, Z;
+      const dt_s = -frac * PERSIST * T_s;  // seconds in the past
+      const earthRotThen = earthRotRate * dt_s;  // Earth rotation since that moment (negative)
+      if(ECF_MODE){
+        // ECF: orbit drifts, Earth fixed — shift RAAN by Earth rotation delta
+        const raanECF = d2r(RAAN_draw) - earthRotThen;
+        const [ex,ey,ez] = orbECI(th, r, r2d(raanECF));
+        const mag = Math.sqrt(ex*ex+ey*ey+ez*ez);
+        X=ex/mag; Y=ey/mag; Z=ez/mag;
+      } else {
+        // ECI: orbit fixed — but sub-satellite point on Earth's surface has rotated
+        // with Earth since that moment, so rotate the unit vector by -earthRotThen around Z
+        const [ex,ey,ez] = orbECI(th, r, RAAN_draw);
+        const mag = Math.sqrt(ex*ex+ey*ey+ez*ez);
+        const ux=ex/mag, uy=ey/mag, uz=ez/mag;
+        const c=Math.cos(-earthRotThen), s=Math.sin(-earthRotThen);
+        X = ux*c - uy*s;
+        Y = ux*s + uy*c;
+        Z = uz;
+      }
+      trkPts.push({X, Y, Z, alpha});
+    }
+
+    // Draw in two passes: back hemisphere (dashed, dim) then front (solid)
+    for(let pass=0; pass<2; pass++){
+      const wantBack = (pass===0);
+      if(wantBack){ ctx.save(); ctx.setLineDash([3,5]); }
+      ctx.lineWidth = wantBack ? 1.2 : 2;
+      let inSeg=false;
+      let prevAlpha=-1;
+      for(let i=0; i<trkPts.length; i++){
+        const {X,Y,Z,alpha} = trkPts[i];
+        const [,,depth] = project(X,Y,Z);
+        const isBack = depth>0;
+        if(isBack !== wantBack){
+          if(inSeg){ ctx.stroke(); inSeg=false; }
+          continue;
+        }
+        const a2 = wantBack ? alpha*0.25 : alpha*0.90;
+        if(Math.abs(a2-prevAlpha)>0.04 && inSeg){
+          ctx.stroke(); inSeg=false;  // break segment on alpha change to re-stroke with new style
+        }
+        if(!inSeg || Math.abs(a2-prevAlpha)>0.04){
+          ctx.strokeStyle=`rgba(0,255,160,${a2.toFixed(2)})`;
+          prevAlpha=a2;
+        }
+        const [px,py]=scr(X,Y,Z);
+        if(!inSeg){ ctx.beginPath(); ctx.moveTo(px,py); inSeg=true; }
+        else ctx.lineTo(px,py);
+      }
+      if(inSeg) ctx.stroke();
+      if(wantBack){ ctx.setLineDash([]); ctx.restore(); }
+    }
+    // Sub-satellite nadir point — find ECI unit vector of satellite, 
+    // then draw it as a globe-surface point so it rotates with Earth in ECF mode.
+    {
+      const nuN=nu_from_M(MA,e);
+      const [sX,sY,sZ]=orbECI(nuN, orb_r(nuN,a,e), RAAN_draw);
+      const sm=Math.sqrt(sX*sX+sY*sY+sZ*sZ);
+      // Convert ECI unit vector to longitude/latitude, then draw via scrGlobe
+      const nadirLon = Math.atan2(sY/sm, sX/sm);  // ECI longitude (radians)
+      const nadirLat = Math.asin(sZ/sm);            // latitude (radians)
+      // In ECI mode ecfOff rotates the globe, so we subtract it to get ECF longitude
+      const nadirLonECF = nadirLon - ecfOff;
+      const [npx,npy]=scrGlobe(nadirLonECF, nadirLat, ecfOff);
+      ctx.beginPath(); ctx.arc(npx,npy,5,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,255,160,.90)'; ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillStyle='rgba(0,255,160,.70)'; ctx.font='9px Share Tech Mono,monospace';
+      ctx.fillText('nadir',npx+7,npy+3);
+    }
+  }
+
+  // ── 11. Satellite position ───────────────────────────────────────────
+  const nu=nu_from_M(MA,e);
+  const rSat=orb_r(nu,a,e);
+  const [satX,satY]=orbScr(nu,rSat);
+
+  // radius vector Earth→sat (dashed)
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(cx0,cy0); ctx.lineTo(satX,satY); ctx.stroke();
+  ctx.restore(); // restores setLineDash
+
+  // ── 12. Mean anomaly arc ─────────────────────────────────────────────
+  {
+    const arcR=ER*0.38;
+    const n=Math.max(2,Math.round(Math.abs(MA)));
+    ctx.strokeStyle='rgba(0,200,255,.58)'; ctx.lineWidth=2;
+    ctx.beginPath(); let f=true;
+    for(let ii=0;ii<=n;ii++){
+      const [px,py]=orbScr(d2r(MA/n*ii), arcR);
+      f?ctx.moveTo(px,py):ctx.lineTo(px,py); f=false;
+    }
+    ctx.stroke();
+    const [mlx,mly]=orbScr(d2r(MA/2), arcR*1.22);
+    ctx.fillStyle='rgba(0,200,255,.82)'; ctx.font='bold 12px Rajdhani,sans-serif';
+    ctx.fillText('M='+Math.round(MA)+'\xb0',mlx+2,mly-3);
+  }
+
+  // ── 13. True anomaly arc ─────────────────────────────────────────────
+  {
+    const arcR=ER*0.25;
+    const n=Math.max(2,Math.round(Math.abs(r2d(nu))));
+    ctx.strokeStyle='rgba(255,68,136,.78)'; ctx.lineWidth=2;
+    ctx.beginPath(); let f=true;
+    for(let ii=0;ii<=n;ii++){
+      const [px,py]=orbScr(nu/n*ii, arcR);
+      f?ctx.moveTo(px,py):ctx.lineTo(px,py); f=false;
+    }
+    ctx.stroke();
+    const [nlx,nly]=orbScr(nu/2, arcR*1.4);
+    ctx.fillStyle='rgba(255,68,136,.92)'; ctx.font='10px Share Tech Mono,monospace';
+    ctx.fillText('nu='+Math.round(r2d(nu))+'\xb0',nlx+2,nly-2);
+  }
+
+  // ── 14. Satellite glow ───────────────────────────────────────────────
+  {
+    // Depth-test the satellite's 3D position to dim it when behind Earth
+    const [sX3,sY3,sZ3]=orbECI(nu,rSat,RAAN_draw);
+    const satBehind=isBehind(sX3,sY3,sZ3);
+    const satAlpha=satBehind?0.18:1.0;   // nearly invisible behind Earth
+    if(isFinite(satX) && isFinite(satY)){
+    const g=ctx.createRadialGradient(satX,satY,0,satX,satY,18);
+    g.addColorStop(0,`rgba(255,255,255,${0.95*satAlpha})`);
+    g.addColorStop(.38,`rgba(120,230,255,${0.38*satAlpha})`);
+    g.addColorStop(1,'transparent');
+    ctx.beginPath(); ctx.arc(satX,satY,18,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    ctx.beginPath(); ctx.arc(satX,satY,5,0,Math.PI*2);
+    ctx.fillStyle=satBehind?'rgba(180,220,255,.20)':'#fff'; ctx.fill();
+    ctx.fillStyle=`rgba(255,255,255,${0.72*satAlpha})`; ctx.font='11px Share Tech Mono,monospace';
+    ctx.fillText('SAT',satX+10,satY-10);
+    }
+  }
+
+  // ── 14b. Altitude annotation ────────────────────────────────────────
+  // Draw a line from satellite down to the Earth surface along the radius vector,
+  // with a bracket and altitude label. The surface point is at r=ER in the same direction.
+  {
+    const [sX,sY,sZ]=orbECI(nu, rSat, RAAN_draw);   // satellite ECI position (ER units)
+    const mag=Math.sqrt(sX*sX+sY*sY+sZ*sZ);  // should equal rSat/ER
+    const nx=sX/mag, ny=sY/mag, nz=sZ/mag;    // unit radial vector
+
+    // Surface point = 1.0 ER along same direction
+    const [surX,surY]=scr(nx, ny, nz);
+    // Satellite screen pos already computed as satX,satY
+
+    // Draw altitude line
+    ctx.save();
+    ctx.strokeStyle='rgba(160,200,255,.60)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(satX,satY); ctx.lineTo(surX,surY); ctx.stroke();
+    ctx.restore();
+
+    // Small tick marks at each end
+    const ang=Math.atan2(surY-satY, surX-satX);
+    const perp=ang+Math.PI/2;
+    const tk=5;
+    [[satX,satY],[surX,surY]].forEach(([px,py])=>{
+      ctx.strokeStyle='rgba(160,200,255,.55)'; ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.moveTo(px+tk*Math.cos(perp), py+tk*Math.sin(perp));
+      ctx.lineTo(px-tk*Math.cos(perp), py-tk*Math.sin(perp));
+      ctx.stroke();
+    });
+
+    // Altitude label at midpoint
+    // Compute true orbital radius in km directly from Keplerian elements —
+    // NOT from rSat (which is display-scaled/compressed, not true km).
+    // ALT_KM = perigee altitude; true SMA = (Re+hp)/(1-e)
+    const aKmTrue = (RE_KM + ALT_KM) / Math.max(0.001, 1 - ECC);
+    const rKm = aKmTrue*(1-ECC*ECC)/(1+ECC*Math.cos(nu));
+    const hKm = rKm - RE_KM;
+    const midX=(satX+surX)/2, midY=(satY+surY)/2;
+    const offX=12*Math.cos(ang+Math.PI/2), offY=12*Math.sin(ang+Math.PI/2);
+    ctx.fillStyle='rgba(160,200,255,.90)'; ctx.font='bold 11px Share Tech Mono,monospace';
+    const label = Math.round(hKm)+' km';
+    ctx.fillText(label, midX+offX, midY+offY);
+
+    // Also show orbit type annotation
+    let orbitType='';
+    if(ALT_KM<2000) orbitType='LEO';
+    else if(ALT_KM<35000) orbitType='MEO';
+    else orbitType='GEO';
+    ctx.fillStyle='rgba(160,200,255,.50)'; ctx.font='9px Share Tech Mono,monospace';
+    ctx.fillText(orbitType, midX+offX, midY+offY+13);
+  }
+
+  // ── 15b. AXES WIDGET (bottom-left, toggleable) ──────────────────────
+  {
+    const dpr2=window.devicePixelRatio||1;
+    const W2=cv.width/dpr2, H2=cv.height/dpr2;
+    const AL=42;
+    const BTN_W=62, BTN_H=16;
+    const BTN_X=8, BTN_Y=H2-BTN_H-8;
+
+    // Always draw the toggle pill
+    ctx.save();
+    ctx.fillStyle='rgba(4,12,24,.88)';
+    ctx.strokeStyle='rgba(0,160,255,.28)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(BTN_X,BTN_Y,BTN_W,BTN_H,3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(0,200,255,.80)'; ctx.font='bold 8px Share Tech Mono,monospace';
+    ctx.letterSpacing='1px';
+    ctx.fillText(AXES_OPEN ? '\u25bc AXES' : '\u25b6 AXES', BTN_X+7, BTN_Y+11);
+    ctx.letterSpacing='0px';
+    ctx.restore();
+    draw._axesToggle={x:BTN_X, y:BTN_Y, w:BTN_W, h:BTN_H};
+
+    if(AXES_OPEN){
+      const AX=BTN_X+BTN_W/2+4, AY=BTN_Y-AL-18;
+
+      function axScr(X,Y,Z){
+        const [sx,sy]=project(X,Y,Z);
+        return [AX+sx*AL, AY+sy*AL];
+      }
+
+      ctx.save();
+      ctx.beginPath(); ctx.arc(AX,AY,AL+10,0,Math.PI*2);
+      ctx.fillStyle='rgba(5,14,28,.78)'; ctx.fill();
+      ctx.strokeStyle='rgba(0,160,255,.18)'; ctx.lineWidth=1; ctx.stroke();
+
+      const axes=[
+        {X:1,Y:0,Z:0, col:'#ff4444', label:'X', lbl2:'\u2648'},
+        {X:0,Y:1,Z:0, col:'#44cc44', label:'Y', lbl2:''},
+        {X:0,Y:0,Z:1, col:'#4488ff', label:'Z', lbl2:''},
+      ];
+      axes.forEach(ax=>{ const [,,d]=project(ax.X,ax.Y,ax.Z); ax.depth=d; });
+      axes.sort((a,b)=>b.depth-a.depth);
+
+      axes.forEach(ax=>{
+        const [tx,ty]=axScr(ax.X,ax.Y,ax.Z);
+        const isFront=ax.depth<=0;
+        const [nx,ny]=axScr(-ax.X*0.55,-ax.Y*0.55,-ax.Z*0.55);
+        ctx.save();
+        ctx.setLineDash([3,3]);
+        ctx.strokeStyle=isFront?ax.col+'99':'rgba(120,120,120,.35)';
+        ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.moveTo(AX,AY); ctx.lineTo(nx,ny); ctx.stroke();
+        ctx.restore();
+        ctx.strokeStyle=ax.col+(isFront?'':'88');
+        ctx.lineWidth=isFront?2.2:1.4;
+        ctx.beginPath(); ctx.moveTo(AX,AY); ctx.lineTo(tx,ty); ctx.stroke();
+        const ang=Math.atan2(ty-AY,tx-AX);
+        const hs=isFront?7:5;
+        ctx.fillStyle=ax.col+(isFront?'':'88');
+        ctx.beginPath();
+        ctx.moveTo(tx,ty);
+        ctx.lineTo(tx-hs*Math.cos(ang-.4),ty-hs*Math.sin(ang-.4));
+        ctx.lineTo(tx-hs*Math.cos(ang+.4),ty-hs*Math.sin(ang+.4));
+        ctx.closePath(); ctx.fill();
+        if(isFront){
+          ctx.fillStyle=ax.col;
+          ctx.font='bold 11px Share Tech Mono,monospace';
+          const lx=tx+7*Math.cos(ang), ly=ty+7*Math.sin(ang);
+          ctx.fillText(ax.label,lx-4,ly+4);
+          if(ax.lbl2){
+            ctx.font='9px Share Tech Mono,monospace';
+            ctx.fillStyle='rgba(255,230,0,.70)';
+            ctx.fillText(ax.lbl2,lx+8,ly-2);
+          }
+        }
+      });
+      ctx.beginPath(); ctx.arc(AX,AY,2.5,0,Math.PI*2);
+      ctx.fillStyle='rgba(200,220,255,.60)'; ctx.fill();
+      ctx.fillStyle='rgba(140,170,200,.50)'; ctx.font='8px Share Tech Mono,monospace';
+      ctx.fillText(ECF_MODE?'ECF axes':'ECI axes',AX-18,AY+AL+14);
+      ctx.restore();
+    }
+  }
+
+  // ── 15. Fused HUD + Legend panel ────────────────────────────────────
+  {
+    const aKm=(RE_KM+ALT_KM)/Math.max(0.001,1-ECC);  // true SMA
+    const T=2*Math.PI*Math.sqrt(aKm*aKm*aKm/398600);
+    const Tmin=Math.round(T/60);
+    const Tstr=Tmin>=120?(Tmin/60).toFixed(1)+' hr':Tmin+' min';
+    const nuDeg=Math.round(r2d(nu));
+    const frame=ECF_MODE?'ECF':'ECI';
+    const orbitType=ALT_KM<2000?'LEO':ALT_KM<35000?'MEO':'GEO';
+    // Orbital velocity via vis-viva: v = sqrt(μ*(2/r - 1/a))
+    const rKmNu=(RE_KM+ALT_KM)*(1-ECC*ECC)/(1+ECC*Math.cos(nu));
+    const vKms=Math.sqrt(398600*(2/rKmNu - 1/aKm));
+
+    // ── Section A: Computed / time-varying values ──────────────────
+    const secA=[
+      // [swatch-type, swatch-color, label, value, value-color]
+      ['line','#ff6090','\u03bd  true anomaly',nuDeg+'\xb0','#ff6090'],
+      ['line','rgba(0,200,255,.7)','M  mean anomaly',Math.round(MA)+'\xb0','#00e5ff'],
+      ['none','','v  velocity',vKms.toFixed(2)+' km/s','rgba(200,220,255,.90)'],
+      ['none','','T  orbital period',Tstr,'rgba(200,200,255,.85)'],
+      (()=>{ const aT=(RE_KM+ALT_KM)/Math.max(0.001,1-ECC); const hA=Math.round(aT*(1+ECC)-RE_KM); const hAstr=hA+' km'; const hPstr=ALT_KM+' km'; return ['none','','h\u209a / h\u2090',hPstr+' / '+hAstr,'#a0c8ff']; })(),
+      ['none','','az / el',Math.round(r2d(CAM_AZ))+'\xb0 / '+Math.round(r2d(CAM_EL))+'\xb0','rgba(160,190,220,.5)'],
+    ];
+    // ── Section C: Trace / feature color key ──────────────────────
+    const secC=[
+      ['line','rgba(255,160,0,.90)','Equator (orange=front)','','#ffa000'],
+      ['line','rgba(0,200,255,.8)','Orbit  solid=front  dash=rear','','#00e5ff'],
+      ['line','rgba(0,255,160,.8)','Ground track / nadir','','#00ffa0'],
+      ['line','#ff9900','\u03c9 arc  node\u2192perigee','','#ff9900'],
+      ['line','rgba(255,160,64,.85)','\u21ba ECF spin reference','','#ffa040'],
+      ['line','rgba(255,210,80,.75)','0\xb0 lon  Prime Meridian (ECF)','','rgba(255,210,80,.85)'],
+    ];
+
+    const PX=12, PY=14;      // panel top-left
+    const PW=210;             // panel width
+    const LH=15;              // line height
+    const SH=10;              // section header height
+    const PAD=7;
+    const swW=14, swH=3;
+
+    function sectionHeight(rows){ return SH+PAD+rows.length*LH+PAD; }
+    const TBH_pre=18;  // toggle bar height (pre-declared for totalH calc)
+    const totalH=TBH_pre+4+sectionHeight(secA)+4+sectionHeight(secC)+PAD;
+
+    // Background (only drawn when open; toggle button draws its own bg)
+    ctx.save();
+    if(LEGEND_OPEN){
+      ctx.fillStyle='rgba(4,12,24,.82)';
+      ctx.strokeStyle='rgba(0,160,255,.18)'; ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.roundRect(PX,PY,PW,totalH,3);
+      ctx.fill(); ctx.stroke();
+      // Accent bar
+      ctx.fillStyle='#00e5ff';
+      ctx.fillRect(PX,PY,PW,1.5);
+    }
+
+    function drawSection(title, rows, yStart, accentCol){
+      // Section header
+      ctx.fillStyle=accentCol||'rgba(0,200,255,.40)';
+      ctx.font='bold 8px Share Tech Mono,monospace';
+      ctx.letterSpacing='2px';
+      ctx.fillText(title.toUpperCase(), PX+PAD, yStart+SH-2);
+      ctx.letterSpacing='0px';
+
+      // Separator line
+      ctx.strokeStyle='rgba(0,160,255,.14)'; ctx.lineWidth=.8;
+      ctx.beginPath(); ctx.moveTo(PX+PAD,yStart+SH+1); ctx.lineTo(PX+PW-PAD,yStart+SH+1); ctx.stroke();
+
+      rows.forEach(([swType,swCol,label,val,valCol],ii)=>{
+        const rowY=yStart+SH+PAD+ii*LH;
+        const midY=rowY+LH/2-1;
+
+        // Swatch
+        if(swType==='line'){
+          ctx.strokeStyle=swCol; ctx.lineWidth=2.5;
+          ctx.beginPath(); ctx.moveTo(PX+PAD,midY); ctx.lineTo(PX+PAD+swW,midY); ctx.stroke();
+        } else if(swType==='dot'){
+          ctx.beginPath(); ctx.arc(PX+PAD+swW/2,midY,3.5,0,Math.PI*2);
+          ctx.fillStyle=swCol; ctx.fill();
+        }
+
+        // Label
+        ctx.fillStyle='rgba(180,210,240,.70)'; ctx.font='9px Share Tech Mono,monospace';
+        ctx.fillText(label, PX+PAD+swW+5, midY+3.5);
+
+        // Value (right-aligned)
+        if(val){
+          ctx.fillStyle=valCol; ctx.font='bold 9px Share Tech Mono,monospace';
+          const vw=ctx.measureText(val).width;
+          ctx.fillText(val, PX+PW-PAD-vw, midY+3.5);
+        }
+      });
+      return yStart+sectionHeight(rows);
+    }
+
+    // ── Toggle button (always drawn, even when closed) ──────────────
+    // A small pill in the top-left corner of the canvas.
+    const TBX=PX, TBY=PY;  // top-left anchor
+    const TBW=LEGEND_OPEN ? PW : 68, TBH=18;
+    ctx.fillStyle='rgba(4,12,24,.88)';
+    ctx.strokeStyle='rgba(0,200,255,.30)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(TBX,TBY,TBW,TBH,3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(0,200,255,.80)'; ctx.font='bold 9px Share Tech Mono,monospace';
+    ctx.letterSpacing='1px';
+    const toggleLabel = LEGEND_OPEN ? '\u25bc HIDE LEGEND' : '\u25b6 LEGEND';
+    ctx.fillText(toggleLabel, TBX+7, TBY+12);
+    ctx.letterSpacing='0px';
+    // Store toggle hit region for click detection (in CSS pixels)
+    draw._legendToggle={x:TBX, y:TBY, w:TBW, h:TBH};
+
+    if(!LEGEND_OPEN){ ctx.restore(); return; }
+
+    let y=PY+TBH+4;
+    y=drawSection('Live Values', secA, y, 'rgba(0,220,255,.55)');
+    // Divider
+    ctx.fillStyle='rgba(0,160,255,.12)'; ctx.fillRect(PX+4,y,PW-8,3); y+=4;
+    drawSection('Color Key', secC, y, 'rgba(160,200,255,.35)');
+
+    ctx.restore();
+  }
+  _RAAN_draw = undefined;  // clear after draw
+}
+
+// ── Resize ────────────────────────────────────────────────────────────
+function resize(){
+  const dpr=window.devicePixelRatio||1;
+  const rect=cv.getBoundingClientRect();
+  const W=rect.width;
+  // Canvas height: on mobile (narrow) use square-ish; on desktop cap at 640px
+  const isMobile=W<641;
+  const H=isMobile ? Math.round(W*0.85) : Math.min(Math.round(W*1.05), 820);
+  cv.width=Math.round(W*dpr);
+  cv.height=Math.round(H*dpr);
+  cv.style.height=H+'px';
+  ctx.scale(dpr,dpr);
+  ER=Math.min(W*(isMobile?0.22:0.19),130);
+  SMA=ER*2.35;
+}
+
+// ── Camera drag (left) + Pan (right) ─────────────────────────────────
+let drag={active:false,isPan:false,lastX:0,lastY:0};
+function getXY(e){return e.touches?[e.touches[0].clientX,e.touches[0].clientY]:[e.clientX,e.clientY];}
+cv.addEventListener('mousedown',e=>{
+  // Check legend toggle hit first
+  const rect=cv.getBoundingClientRect();
+  const dpr=window.devicePixelRatio||1;
+  const scaleX=cv.width/(dpr*rect.width), scaleY=cv.height/(dpr*rect.height);
+  const cx=(e.clientX-rect.left), cy=(e.clientY-rect.top);
+  const lt=draw._legendToggle;
+  if(e.button===0 && lt && cx>=lt.x && cx<=lt.x+lt.w && cy>=lt.y && cy<=lt.y+lt.h){
+    LEGEND_OPEN=!LEGEND_OPEN; draw(); return;
+  }
+  const at=draw._axesToggle;
+  if(e.button===0 && at && cx>=at.x && cx<=at.x+at.w && cy>=at.y && cy<=at.y+at.h){
+    AXES_OPEN=!AXES_OPEN; draw(); return;
+  }
+  drag.active=true;
+  drag.isPan=(e.button===2);
+  [drag.lastX,drag.lastY]=getXY(e);
+  cv.classList.add('dragging');
+});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===1){
+    // Check legend toggle tap
+    const rect=cv.getBoundingClientRect();
+    const cx=e.touches[0].clientX-rect.left, cy=e.touches[0].clientY-rect.top;
+    const lt=draw._legendToggle;
+    if(lt && cx>=lt.x && cx<=lt.x+lt.w && cy>=lt.y && cy<=lt.y+lt.h){
+      LEGEND_OPEN=!LEGEND_OPEN; draw(); return;
+    }
+    const at=draw._axesToggle;
+    if(at && cx>=at.x && cx<=at.x+at.w && cy>=at.y && cy<=at.y+at.h){
+      AXES_OPEN=!AXES_OPEN; draw(); return;
+    }
+    drag.active=true; drag.isPan=false;
+    [drag.lastX,drag.lastY]=[e.touches[0].clientX,e.touches[0].clientY];
+    drag.pinchDist=null;
+  } else if(e.touches.length===2){
+    drag.active=true; drag.isPan=false;
+    // record midpoint and pinch distance
+    const t=e.touches;
+    drag.lastX=(t[0].clientX+t[1].clientX)/2;
+    drag.lastY=(t[0].clientY+t[1].clientY)/2;
+    drag.pinchDist=Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+  }
+  cv.classList.add('dragging');
+},{passive:false});
+
+window.addEventListener('mousemove',e=>{
+  if(!drag.active)return;
+  const [x,y]=getXY(e), dx=x-drag.lastX, dy=y-drag.lastY;
+  if(drag.isPan){
+    PAN_X+=dx; PAN_Y+=dy;
+  } else {
+    CAM_AZ-=dx*0.005;
+    CAM_EL=Math.max(d2r(-85),Math.min(d2r(85),CAM_EL+dy*0.005));
+  }
+  drag.lastX=x; drag.lastY=y; draw();
+});
+
+cv.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(!drag.active)return;
+  if(e.touches.length===1 && drag.pinchDist===null){
+    // single finger: rotate
+    const x=e.touches[0].clientX, y=e.touches[0].clientY;
+    const dx=x-drag.lastX, dy=y-drag.lastY;
+    CAM_AZ-=dx*0.005;
+    CAM_EL=Math.max(d2r(-85),Math.min(d2r(85),CAM_EL+dy*0.005));
+    drag.lastX=x; drag.lastY=y;
+  } else if(e.touches.length===2){
+    const t=e.touches;
+    const mx=(t[0].clientX+t[1].clientX)/2, my=(t[0].clientY+t[1].clientY)/2;
+    const dist=Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+    // pinch zoom
+    if(drag.pinchDist!==null && drag.pinchDist>0){
+      const factor=dist/drag.pinchDist;
+      ZOOM=Math.max(0.3,Math.min(4.0,ZOOM*factor));
+    }
+    // two-finger pan
+    PAN_X+=mx-drag.lastX; PAN_Y+=my-drag.lastY;
+    drag.lastX=mx; drag.lastY=my;
+    drag.pinchDist=dist;
+  }
+  draw();
+},{passive:false});
+
+window.addEventListener('mouseup',()=>{drag.active=false;cv.classList.remove('dragging');});
+window.addEventListener('touchend',()=>{drag.active=false;drag.pinchDist=null;cv.classList.remove('dragging');});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.08 : 0.926;  // scroll up = zoom in
+  ZOOM = Math.max(0.3, Math.min(4.0, ZOOM * factor));
+  draw();
+},{passive:false});
+
+
+// ── Preset orbits ─────────────────────────────────────────────────────
+const PRESETS = {
+  iss:     { raan:0,   inc:51,   argp:0,   ma:0,   ecc:0.00, hp:408,   label:'ISS' },
+  sso:     { raan:0,   inc:98,   argp:0,   ma:0,   ecc:0.00, hp:600,   label:'Sun-Synchronous' },
+  gps:     { raan:0,   inc:55,   argp:0,   ma:0,   ecc:0.01, hp:19940, label:'GPS' },
+  geo:     { raan:0,   inc:0,    argp:0,   ma:0,   ecc:0.00, hp:35786, label:'GEO' },
+  molniya: { raan:40,  inc:63,   argp:270, ma:180, ecc:0.74, hp:500,   label:'Molniya' },
+  tundra:  { raan:0,   inc:63,   argp:270, ma:180, ecc:0.26, hp:17900, label:'Tundra' },
+  heo:     { raan:0,   inc:28,   argp:180, ma:0,   ecc:0.60, hp:500,   label:'HEO' },
+};
+
+function applyPreset(key){
+  const p=PRESETS[key]; if(!p) return;
+  RAAN=p.raan; INC=p.inc; ARGP=p.argp; MA=p.ma; ECC=p.ecc; ALT_KM=p.hp;
+  // Update sliders
+  document.getElementById('sRaan').value=RAAN;  document.getElementById('vRaan').textContent=RAAN+'°';
+  document.getElementById('sInc').value=INC;    document.getElementById('vInc').textContent=INC+'°';
+  document.getElementById('sArgp').value=ARGP;  document.getElementById('vArgp').textContent=ARGP+'°';
+  document.getElementById('sMa').value=MA;      document.getElementById('vMa').textContent=MA+'°';
+  document.getElementById('sEcc').value=Math.round(ECC*100); document.getElementById('vEcc').textContent=ECC.toFixed(2);
+  document.getElementById('sAlt').value=ALT_KM; document.getElementById('vAlt').textContent=ALT_KM+' km';
+  draw();
+}
+document.getElementById('presetSel').addEventListener('change', function(){ if(this.value) applyPreset(this.value); });
+
+
+document.getElementById('sArgp').addEventListener('input',function(){ARGP=+this.value;document.getElementById('vArgp').textContent=ARGP+'\xb0';draw();});
+document.getElementById('sAlt').addEventListener('input',function(){ALT_KM=+this.value;document.getElementById('vAlt').textContent=ALT_KM+' km';draw();});
+document.getElementById('sRaan').addEventListener('input',function(){RAAN=+this.value;document.getElementById('vRaan').textContent=RAAN+'\xb0';draw();});
+document.getElementById('sInc').addEventListener('input',function(){INC=+this.value;document.getElementById('vInc').textContent=INC+'\xb0';draw();});
+document.getElementById('sMa').addEventListener('input',function(){MA=+this.value;document.getElementById('vMa').textContent=MA+'\xb0';draw();});
+document.getElementById('sEcc').addEventListener('input',function(){ECC=this.value/100;document.getElementById('vEcc').textContent=ECC.toFixed(2);draw();});
+
+// ── Animation ─────────────────────────────────────────────────────────
+document.getElementById('animBtn').addEventListener('click',function(){
+  animating=!animating;
+  this.textContent=animating?'\u23f9 STOP':'\u25b6 ANIMATE';
+  if(animating){ lastTimestamp=null; raf=requestAnimationFrame(tick); }else cancelAnimationFrame(raf);
+});
+// ── Animation speed ───────────────────────────────────────────────────
+const SPEED_STEPS = [1, 3, 10, 30, 100, 300, 1000, 3000, 10000];
+let SIM_SPEED = 100;  // simulation seconds per real second
+let lastTimestamp = null;
+
+document.getElementById('sSpeed').addEventListener('input', function(){
+  const idx = +this.value;
+  SIM_SPEED = SPEED_STEPS[idx];
+  const label = SIM_SPEED >= 1000 ? (SIM_SPEED/1000)+'k×' : SIM_SPEED+'×';
+  document.getElementById('vSpeed').textContent = label;
+});
+
+document.getElementById('sPersist').addEventListener('input', function(){
+  PERSIST = +this.value * 0.25;  // 1..12 → 0.25..3.0
+  const label = Number.isInteger(PERSIST) ? PERSIST+' orb' : PERSIST.toFixed(2)+' orb';
+  document.getElementById('vPersist').textContent = label;
+  draw();
+});
+
+function tick(timestamp){
+  if(lastTimestamp === null) lastTimestamp = timestamp;
+  const dtReal = Math.min((timestamp - lastTimestamp) / 1000, 0.1);  // real seconds, capped at 100ms
+  lastTimestamp = timestamp;
+
+  // Sim seconds elapsed this frame
+  const dt = dtReal * SIM_SPEED;
+
+  // True orbital period from current elements (seconds)
+  const aKmTick = (RE_KM + ALT_KM) / Math.max(0.001, 1 - ECC);
+  const T_sec = 2 * Math.PI * Math.sqrt(aKmTick * aKmTick * aKmTick / 398600);
+
+  // Advance mean anomaly: dMA = dt * 360/T degrees
+  const dMA = dt * 360 / T_sec;
+  MA = (MA + dMA) % 360;
+
+  // Earth rotates 360° per sidereal day (86164s)
+  ECF_OFFSET = (ECF_OFFSET + d2r(dt * 360 / 86164)) % (2 * Math.PI);
+
+  // Sun advances ~1°/day along ecliptic (365.25 day period)
+  SUN_LON = (SUN_LON + dt * 360 / (365.25 * 86400) + 360) % 360;
+
+  // ── J2 precession ──────────────────────────────────────────────
+  if(J2_ON){
+  const J2 = 1.08263e-3;
+  const n  = 2 * Math.PI / T_sec;                       // mean motion (rad/s)
+  const e2 = 1 - ECC * ECC;                             // (1-e²)
+  const j2factor = -1.5 * n * J2 * Math.pow(RE_KM / aKmTick, 2) / (e2 * e2);
+  const cosI = Math.cos(d2r(INC));
+  // Nodal precession: dΩ/dt = j2factor · cos(i)
+  RAAN = (RAAN + r2d(j2factor * cosI) * dt + 360) % 360;
+  // Apsidal precession: dω/dt = j2factor · -½·(5cos²i - 1)
+  ARGP = (ARGP + r2d(j2factor * -0.5 * (5 * cosI * cosI - 1)) * dt + 360) % 360;
+  // Sync sliders
+  document.getElementById('sRaan').value= RAAN;  document.getElementById('vRaan').textContent = Math.round(RAAN)+'°';
+  document.getElementById('sArgp').value= ARGP;  document.getElementById('vArgp').textContent = Math.round(ARGP)+'°';
+  }
+  document.getElementById('sMa').value = MA; document.getElementById('vMa').textContent = Math.round(MA)+'°';
+  draw(); if(animating) raf = requestAnimationFrame(tick);
+}
+
+draw._legendToggle=null;
+draw._axesToggle=null;
+window.addEventListener('resize',()=>{resize();draw();});
+resize(); draw();
+// Auto-start animation
+animating=true;
+document.getElementById('animBtn').textContent='\u23f9 STOP';
+raf=requestAnimationFrame(tick);
+</script>
+</body>
+</html>
