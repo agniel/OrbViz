@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cislunar Space Explorer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Orbitron:wght@400;600;900&display=swap');
+
+  :root {
+    --bg: #020408;
+    --panel-bg: rgba(4,12,24,0.92);
+    --border: rgba(0,200,255,0.18);
+    --accent: #00c8ff;
+    --accent2: #ff6b35;
+    --accent3: #7fff6b;
+    --accent4: #ffdd44;
+    --text: #cce8f0;
+    --text-dim: #5a8090;
+    --mono: 'Space Mono', monospace;
+    --display: 'Orbitron', sans-serif;
+    --left-w: 280px;
+    --right-w: 300px;
+    --top-h: 52px;
+    --status-h: 28px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  #canvas-container {
+    position: absolute;
+    inset: 0;
+    touch-action: none;
+  }
+  canvas { display:block; width:100%; height:100%; }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: var(--top-h);
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  #topbar h1 {
+    font-family: var(--display);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .chapter-tabs {
+    display: flex;
+    gap: 3px;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .chapter-tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab.active {
+    background: rgba(0,200,255,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── SIDE PANELS shared ── */
+  .side-panel {
+    position: absolute;
+    top: var(--top-h);
+    bottom: var(--status-h);
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 90;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  /* ── LEFT PANEL ── */
+  #left-panel {
+    left: 0;
+    width: var(--left-w);
+    border-right: 1px solid var(--border);
+  }
+
+  /* ── RIGHT PANEL ── */
+  #right-panel {
+    right: 0;
+    width: var(--right-w);
+    border-left: 1px solid var(--border);
+  }
+
+  .panel-section {
+    border: 1px solid var(--border);
+    padding: 12px;
+    background: rgba(0,200,255,0.03);
+    flex-shrink: 0;
+  }
+
+  .panel-section h3 {
+    font-family: var(--display);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .info-text {
+    font-size: 10px;
+    line-height: 1.75;
+    color: var(--text);
+  }
+  .info-text b { color: var(--accent); font-weight: 700; }
+  .info-text .orange { color: var(--accent2); }
+  .info-text .green  { color: var(--accent3); }
+  .info-text .yellow { color: var(--accent4); }
+
+  /* ── CHAPTER NARRATIVE (right panel) ── */
+  #chapter-narrative {
+    font-size: 10.5px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  #chapter-narrative p { margin-bottom: 10px; }
+  #chapter-narrative p:last-child { margin-bottom: 0; }
+  #chapter-narrative b { color: var(--accent); }
+  #chapter-narrative .hl-orange { color: var(--accent2); }
+  #chapter-narrative .hl-green  { color: var(--accent3); }
+  #chapter-narrative .hl-yellow { color: var(--accent4); }
+  #chapter-narrative .hl-pink   { color: #ff88ff; }
+  #chapter-narrative .stat {
+    display: inline-block;
+    background: rgba(0,200,255,0.08);
+    border: 1px solid rgba(0,200,255,0.2);
+    padding: 1px 6px;
+    font-size: 9.5px;
+    color: var(--accent);
+    margin: 1px 0;
+  }
+
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(0,200,255,0.06);
+  }
+  .data-row .label { color: var(--text-dim); }
+  .data-row .value { color: var(--accent); font-weight: 700; }
+
+  /* ── CONTROLS ── */
+  .control-group { display: flex; flex-direction: column; gap: 8px; }
+
+  .ctrl-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .slider-val {
+    font-size: 10px;
+    color: var(--accent);
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:hover  { border-color: var(--accent); color: var(--accent); background: rgba(0,200,255,0.06); }
+  .btn:active { background: rgba(0,200,255,0.12); }
+  .btn.active { border-color: var(--accent2); color: var(--accent2); background: rgba(255,107,53,0.08); }
+  .btn.green-btn { border-color: var(--accent3); color: var(--accent3); }
+  .btn.green-btn:hover { background: rgba(127,255,107,0.08); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 0;
+  }
+
+  .toggle {
+    width: 38px; height: 20px;
+    background: rgba(0,200,255,0.1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .toggle.on { background: rgba(0,200,255,0.3); border-color: var(--accent); }
+  .toggle::after {
+    content:'';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    top: 2px; left: 2px;
+    transition: all 0.2s;
+  }
+  .toggle.on::after { left: 20px; background: var(--accent); }
+
+  /* ── LEGEND ── */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+  .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-line { width: 24px; height: 2px; flex-shrink: 0; }
+
+  /* ── BOTTOM STATUS ── */
+  #statusbar {
+    position: absolute;
+    bottom: 0;
+    left: var(--left-w); right: var(--right-w);
+    height: var(--status-h);
+    background: var(--panel-bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 20px;
+    font-size: 9px;
+    color: var(--text-dim);
+    z-index: 90;
+    overflow: hidden;
+  }
+  #statusbar span { color: var(--accent); }
+  #hint-text { margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── CHAPTER OVERLAY ── */
+  #chapter-overlay {
+    position: absolute;
+    left: calc(var(--left-w) + 10px);
+    top: calc(var(--top-h) + 10px);
+    background: rgba(2,10,20,0.85);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    font-family: var(--display);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    z-index: 95;
+    pointer-events: none;
+    max-width: calc(100vw - var(--left-w) - var(--right-w) - 20px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .btn.pulse {
+    animation: pulse-btn 0.6s ease-in-out infinite alternate;
+  }
+  @keyframes pulse-btn {
+    from { border-color: #ffdd44; color: #ffdd44; background: rgba(255,221,68,0.05); box-shadow: none; }
+    to   { border-color: #ffdd44; color: #ffdd44; background: rgba(255,221,68,0.22); box-shadow: 0 0 8px rgba(255,221,68,0.5); }
+  }
+
+  select {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: rgba(0,200,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 8px;
+    width: 100%;
+    cursor: pointer;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  select option { background: #020a14; }
+
+  /* ── RESPONSIVE: TABLET (≤900px) ── */
+  @media (max-width: 900px) {
+    :root {
+      --left-w: 220px;
+      --right-w: 240px;
+      --top-h: 48px;
+    }
+    #topbar h1 { font-size: 10px; letter-spacing: 1px; }
+    .tab { font-size: 8px; padding: 4px 7px; }
+  }
+
+  /* ── RESPONSIVE: MOBILE (≤640px) ── */
+  @media (max-width: 640px) {
+    :root {
+      --left-w: 0px;
+      --right-w: 0px;
+      --top-h: 44px;
+      --status-h: 24px;
+    }
+    #left-panel  { display: none; }
+    #right-panel { display: none; }
+    #chapter-overlay {
+      left: 8px;
+      font-size: 8px;
+      letter-spacing: 1px;
+      max-width: calc(100vw - 16px);
+      white-space: normal;
+    }
+    #statusbar { left: 0; right: 0; font-size: 8px; gap: 10px; }
+    #hint-text { display: none; }
+    .tab { font-size: 7.5px; padding: 4px 6px; letter-spacing: 0; }
+    #topbar h1 { display: none; }
+  }
+
+  /* ── COLLAPSIBLE SECTIONS ── */
+  .collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0 !important;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+  .collapsible-section.open .collapsible-header {
+    margin-bottom: 10px !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding-bottom: 6px !important;
+  }
+  .collapsible-header:hover .collapse-icon { color: var(--accent); }
+  .collapse-icon {
+    font-size: 13px;
+    color: var(--text-dim);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .collapsible-section.open .collapse-icon { transform: rotate(0deg); }
+  .collapsible-section:not(.open) .collapse-icon { transform: rotate(-90deg); }
+  .collapsible-body {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.25s ease;
+  }
+  .collapsible-section.open .collapsible-body { max-height: 600px; }
+
+  /* ── DISABLED OVERLAY ROWS ── */
+  .toggle-row.overlay-disabled {
+    opacity: 0.28;
+    pointer-events: none;
+  }
+  .toggle-row.overlay-disabled > span {
+    text-decoration: line-through;
+    color: var(--text-dim);
+  }
+
+  @media (pointer: coarse) {
+    .btn { padding: 10px 12px; font-size: 11px; }
+    .toggle { width: 44px; height: 24px; }
+    .toggle::after { width: 18px; height: 18px; }
+    .toggle.on::after { left: 22px; }
+    input[type=range]::-webkit-slider-thumb { width: 20px; height: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"><canvas id="c"></canvas></div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <h1>Cislunar Explorer</h1>
+  <div class="chapter-tabs">
+    <button class="tab active" onclick="setChapter(0)">01 · Scale</button>
+    <button class="tab" onclick="setChapter(1)">02 · Solar Context</button>
+    <button class="tab" onclick="setChapter(2)">03 · Lagrange</button>
+    <button class="tab" onclick="setChapter(3)">04 · Orbits</button>
+    <button class="tab" onclick="setChapter(4)">05 · Stability</button>
+    <button class="tab" onclick="setChapter(5)">06 · Transfer</button>
+  </div>
+</div>
+
+<!-- CHAPTER OVERLAY -->
+<div id="chapter-overlay" id="chap-title">01 · SCALE OF THE EARTH-MOON SYSTEM</div>
+
+<!-- LEFT PANEL -->
+<div id="left-panel" class="side-panel">
+
+  <!-- Collapsible: System Data -->
+  <div class="panel-section collapsible-section" id="sec-data">
+    <h3 class="collapsible-header" onclick="toggleSection('sec-data')">
+      System Data <span class="collapse-icon">▾</span>
+    </h3>
+    <div class="collapsible-body">
+      <div class="data-row"><span class="label">Earth–Moon dist.</span><span class="value">384,400 km</span></div>
+      <div class="data-row"><span class="label">Earth radius</span><span class="value">6,371 km</span></div>
+      <div class="data-row"><span class="label">Moon radius</span><span class="value">1,737 km</span></div>
+      <div class="data-row"><span class="label">Moon mass ratio</span><span class="value">1/81.3</span></div>
+      <div class="data-row"><span class="label">Moon orbital period</span><span class="value">27.32 days</span></div>
+      <div class="data-row"><span class="label">E-M L1 distance</span><span class="value">326,400 km</span></div>
+      <div class="data-row"><span class="label">E-M L2 distance</span><span class="value">444,200 km</span></div>
+      <div class="data-row"><span class="label">Sun-Earth L2</span><span class="value" style="color:#ff88ff">1,500,000 km</span></div>
+      <div class="data-row"><span class="label">JWST orbit period</span><span class="value" style="color:#ff88ff">~6 months</span></div>
+      <div class="data-row"><span class="label">JWST dist. from L2</span><span class="value" style="color:#ff88ff">250–830k km</span></div>
+      <div class="data-row"><span class="label">Earth–Sun dist.</span><span class="value" style="color:#ffdd44">149,600,000 km</span></div>
+      <div class="data-row"><span class="label">Sun radius</span><span class="value" style="color:#ffdd44">696,000 km</span></div>
+      <div class="data-row"><span class="label">SE-L4/L5</span><span class="value" style="color:#7fff6b">1 AU (stable)</span></div>
+    </div>
+  </div>
+
+  <!-- Collapsible: Legend -->
+  <div class="panel-section collapsible-section" id="sec-legend">
+    <h3 class="collapsible-header" onclick="toggleSection('sec-legend')">
+      Legend <span class="collapse-icon">▾</span>
+    </h3>
+    <div class="collapsible-body">
+      <div class="legend-item"><div class="legend-dot" style="background:#4488ff"></div> Earth</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#aaaaaa"></div> Moon</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00c8ff"></div> L1 / L2 (E-M)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffdd44"></div> L3 / SE-L1</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7fff6b"></div> L4 / L5 (stable)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff88ff"></div> SE-L2 / JWST</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffaa44"></div> Sun (ch. 02)</div>
+    </div>
+  </div>
+
+  <!-- View Controls -->
+  <div class="panel-section">
+    <h3>View Controls</h3>
+    <div class="control-group">
+      <div class="ctrl-label">Camera Tilt</div>
+      <div class="slider-row">
+        <input type="range" id="tilt-slider" min="0" max="89" value="20" oninput="updateTilt(this.value)">
+        <span class="slider-val" id="tilt-val">20°</span>
+      </div>
+      <div class="ctrl-label">Zoom</div>
+      <div class="slider-row">
+        <input type="range" id="zoom-slider" min="1" max="100" value="50" oninput="updateZoom(this.value)">
+        <span class="slider-val" id="zoom-val">50</span>
+      </div>
+      <div class="ctrl-label">Time Scale</div>
+      <div class="slider-row">
+        <input type="range" id="speed-slider" min="0" max="100" value="30" oninput="updateSpeed(this.value)">
+        <span class="slider-val" id="speed-val">1x</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlays -->
+  <div class="panel-section">
+    <h3>Overlays</h3>
+    <div class="control-group">
+      <div class="toggle-row" id="row-hill">
+        <span style="font-size:10px">Hill Sphere</span>
+        <div class="toggle on" id="tog-hill" onclick="toggleOverlay('hill')"></div>
+      </div>
+      <div class="toggle-row" id="row-zones">
+        <span style="font-size:10px">Stability Zones</span>
+        <div class="toggle on" id="tog-zones" onclick="toggleOverlay('zones')"></div>
+      </div>
+      <div class="toggle-row" id="row-zvc">
+        <span style="font-size:10px">Zero-Velocity Curves</span>
+        <div class="toggle" id="tog-zvc" onclick="toggleOverlay('zvc')"></div>
+      </div>
+      <div class="toggle-row" id="row-manifold">
+        <span style="font-size:10px">Manifold Tubes</span>
+        <div class="toggle" id="tog-manifold" onclick="toggleOverlay('manifold')"></div>
+      </div>
+      <div class="toggle-row" id="row-trails">
+        <span style="font-size:10px">Orbit Trails</span>
+        <div class="toggle on" id="tog-trails" onclick="toggleOverlay('trails')"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- RIGHT PANEL — narrative + chapter-specific controls -->
+<div id="right-panel" class="side-panel">
+
+  <!-- Narrative -->
+  <div class="panel-section">
+    <h3 id="narrative-chapter-label">01 · Scale</h3>
+    <div id="chapter-narrative" class="info-text" style="font-size:10.5px; line-height:1.85">
+      <!-- filled by setChapter() -->
+    </div>
+  </div>
+
+  <!-- Active Orbit (chapters 04–05) -->
+  <div class="panel-section" id="orbit-controls" style="display:none">
+    <h3>Active Orbit</h3>
+    <div class="control-group">
+      <select id="orbit-select" onchange="selectOrbit(this.value)">
+        <option value="none">— select orbit —</option>
+        <option value="leo">LEO (Low Earth Orbit)</option>
+        <option value="geo">GEO (Geostationary)</option>
+        <option value="dro">DRO (Distant Retrograde)</option>
+        <option value="nrho">NRHO (Gateway)</option>
+        <option value="halo_l1">L1 Halo Orbit</option>
+        <option value="halo_l2">L2 Halo Orbit (E-M)</option>
+        <option value="lyapunov">L1 Lyapunov</option>
+        <option value="jwst">★ JWST (Sun-Earth L2)</option>
+      </select>
+      <div id="orbit-info" class="info-text" style="margin-top:6px; font-size:9px; color:var(--text-dim); line-height:1.6">
+        Select an orbit to learn more.
+      </div>
+    </div>
+  </div>
+
+  <!-- Stability Test (chapter 05) -->
+  <div class="panel-section" id="stability-controls" style="display:none">
+    <h3>Stability Test</h3>
+    <div class="control-group">
+      <div class="ctrl-label">Perturbation Size</div>
+      <div class="slider-row">
+        <input type="range" id="perturb-slider" min="1" max="100" value="20" oninput="updatePerturb(this.value)">
+        <span class="slider-val" id="perturb-val">20%</span>
+      </div>
+      <button class="btn" onclick="launchPerturbed()">▶ Launch Perturbed Orbit</button>
+      <button class="btn" style="margin-top:4px" onclick="clearPerturbed()">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- Transfer Sequence (chapter 06) -->
+  <div class="panel-section" id="transfer-controls" style="display:none">
+    <h3>Transfer Sequence</h3>
+    <div class="control-group">
+      <div style="display:flex; gap:6px; margin-bottom:2px; align-items:center;">
+        <button class="btn" id="btn-auto" onclick="toggleAutoFire()" style="flex:1; font-size:11px;">⚡ AUTO-FIRE: OFF</button>
+      </div>
+      <div style="margin-bottom:4px;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#aaa; margin-bottom:3px;">
+          <span>Trail length</span><span id="trail-len-val" style="color:#ccc;">500</span>
+        </div>
+        <input type="range" min="50" max="2000" value="500" step="50"
+               oninput="updateTrailLen(this.value)" style="width:100%">
+      </div>
+
+      <button class="btn green-btn" id="btn-tli" onclick="stepTransfer(0)">1 · TLI — Trans-Lunar Injection</button>
+      <div style="font-size:9px; color:#666; padding: 2px 2px 6px 2px; line-height:1.5;">
+        Burn from Earth orbit onto 3-day arc to Moon.
+      </div>
+
+      <div id="countdown-flyby" style="display:none; font-family:'Space Mono',monospace; font-size:10px; color:#aaa; padding:2px 0 4px 2px;">
+        LOI burn in: <span id="cdf-val" style="color:#ffdd44; font-weight:bold">--</span> ticks
+      </div>
+      <button class="btn" id="btn-moi" onclick="stepTransfer(1)" disabled>2 · LOI — Lunar Orbit Insertion</button>
+      <div style="font-size:9px; color:#666; padding: 2px 2px 6px 2px; line-height:1.5;">
+        ~299 m/s retrograde at periapsis. Captures into ellipse.
+      </div>
+
+      <div id="countdown-insert" style="display:none; font-family:'Space Mono',monospace; font-size:10px; color:#aaa; padding:2px 0 4px 2px;">
+        Circ burn in: <span id="cdi-val" style="color:#ffdd44; font-weight:bold">--</span> ticks
+      </div>
+      <button class="btn" id="btn-nrho" onclick="stepTransfer(2)" disabled>3 · Circularization Burn</button>
+      <div style="font-size:9px; color:#666; padding: 2px 2px 6px 2px; line-height:1.5;">
+        ~51 m/s trim → stable LLO at 16–18k km.
+      </div>
+
+      <button class="btn" style="border-color:#ff4444; color:#ff4444; margin-top:4px" onclick="resetTransfer()">↺ Reset</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <div>SIM TIME: <span id="sim-time">T+0.00 days</span></div>
+  <div>FRAME: <span id="frame-label">ROTATING (SYNODIC)</span></div>
+  <div>BODIES: <span id="body-count">2</span></div>
+  <div id="hint-text">LEFT-DRAG rotate · RIGHT-DRAG pan · SCROLL zoom</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONSTANTS (normalized CR3BP units unless noted)
+// Earth-Moon mass parameter
+const MU = 1 / 81.3; // Moon mass fraction
+const EM_DIST_KM = 384400;
+const EARTH_R_KM = 6371;
+const MOON_R_KM  = 1737;
+const HILL_R     = Math.pow(MU/3, 1/3); // ~0.167
+
+// In CR3BP: unit length = EM_DIST, Earth at (-MU, 0), Moon at (1-MU, 0)
+const EARTH_X = -MU;
+const MOON_X  = 1 - MU;
+
+// Sun-Earth L2 is ~1,500,000 km from Earth ≈ 3.9× Earth-Moon distance
+const SE_L2_X = EARTH_X + 3.9;
+
+// Sun is ~149,600,000 km from Earth = ~389× Earth-Moon distance
+// In normalized coords, Sun is far to the left of Earth
+const AU_NORM   = 149600000 / 384400; // ~389.1 EM-distances
+const SUN_X     = EARTH_X - AU_NORM;  // Sun position in normalized coords
+const SUN_R_KM  = 696000;
+
+// Sun-Earth Lagrange points (Sun-Earth system, mu_SE ≈ 3e-6)
+const MU_SE     = 3.003e-6; // Earth/Sun mass ratio
+const SE_L1_X   = EARTH_X - 3.9;   // ~1.49M km sunward of Earth
+// SE_L2_X already defined above as EARTH_X + 3.9
+const SE_L3_X   = SUN_X - AU_NORM; // opposite side, ~1 AU from Earth past Sun
+// SE-L4/L5: 60° ahead/behind Earth in its orbit around Sun
+// In our 2D coords, Earth orbits Sun at radius AU_NORM
+// L4 is 60° ahead (counterclockwise), L5 is 60° behind
+const SE_L4_X   = EARTH_X - AU_NORM * 0.5;   // cos(60°) offset from Sun
+const SE_L4_Y   = AU_NORM * Math.sqrt(3)/2;   // sin(60°)
+const SE_L5_X   = SE_L4_X;
+const SE_L5_Y   = -SE_L4_Y;
+
+// Lagrange point positions (normalized)
+const L1_X = MOON_X - Math.pow(MU/3, 1/3);
+const L2_X = MOON_X + Math.pow(MU/3, 1/3);
+const L3_X = EARTH_X - (1 - 7*MU/12);
+const L4_X = 0.5 - MU;  const L4_Y =  Math.sqrt(3)/2;
+const L5_X = 0.5 - MU;  const L5_Y = -Math.sqrt(3)/2;
+
+// ─────────────────────────────────────────────
+// CANVAS / 3D SETUP
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+let W, H, cx, cy, scale; // pixel coords
+
+// Camera
+let camTilt  = 20 * Math.PI / 180; // radians from top
+let camAzim  = 0;
+let camZoom  = 1.0;
+let camPanX  = 0; // pan offset in normalized units
+let camPanY  = 0;
+let isDragging = false, isPanning = false, lastMX, lastMY;
+
+// Simulation
+let simTime  = 0;
+let simSpeed = 0.3; // days/sec
+let raf;
+
+// State
+let currentChapter = 0;
+let overlays = { hill:true, zones:true, zvc:false, manifold:false, trails:true };
+let activeOrbit    = 'none';
+let perturbSize    = 0.20;
+let perturbedParticles = [];
+let transferStep   = -1;
+let transferParticle = null;
+let autoFire = false;
+let trailLen = 500;
+let transferTrail    = [];
+
+// ─────────────────────────────────────────────
+// RESIZE
+function getPanelDims() {
+  const cs = getComputedStyle(document.documentElement);
+  const lw = parseInt(cs.getPropertyValue('--left-w'))  || 0;
+  const rw = parseInt(cs.getPropertyValue('--right-w')) || 0;
+  const th = parseInt(cs.getPropertyValue('--top-h'))   || 52;
+  const sh = parseInt(cs.getPropertyValue('--status-h'))|| 28;
+  return { lw, rw, th, sh };
+}
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W / 2;
+  cy = H / 2;
+  const { lw, rw, th, sh } = getPanelDims();
+  const drawW = W - lw - rw;
+  const drawH = H - th - sh;
+  scale = Math.min(drawW, drawH) * 0.38 * camZoom;
+}
+window.addEventListener('resize', () => { resize(); });
+resize();
+
+// Effective draw center (between panels)
+function drawCX() { const { lw, rw } = getPanelDims(); return lw + (W - lw - rw) / 2; }
+function drawCY() { const { th, sh } = getPanelDims(); return th + (H - th - sh) / 2; }
+
+// ─────────────────────────────────────────────
+// 3D → 2D PROJECTION
+// We use a simple oblique projection with tilt around x-axis
+function project(x3, y3, z3) {
+  // Apply pan offset
+  const px = x3 + camPanX;
+  const py = y3 + camPanY;
+  // Rotate around vertical axis by azimuth
+  const xa =  px * Math.cos(camAzim) + z3 * Math.sin(camAzim);
+  const ya =  py;
+  const za = -px * Math.sin(camAzim) + z3 * Math.cos(camAzim);
+  // Tilt: rotate around x-axis
+  const xt = xa;
+  const yt = ya * Math.cos(camTilt) - za * Math.sin(camTilt);
+  // project to screen
+  const sx = drawCX() + xt * scale;
+  const sy = drawCY() - yt * scale;
+  return { x: sx, y: sy, depth: za };
+}
+
+function proj2D(nx, ny) { return project(nx, ny, 0); }
+
+// ─────────────────────────────────────────────
+// DRAW UTILITIES
+
+function circle(px, py, r, fill, stroke, alpha=1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.arc(px, py, r, 0, Math.PI*2);
+  if (fill)   { ctx.fillStyle = fill;   ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  ctx.restore();
+}
+
+function ellipseOrbit(cx2, cy2, rx, ry, color, alpha=0.5, dash=[]) {
+  const p = proj2D(cx2, cy2);
+  // For tilted view, we project 64 points of the ellipse
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  if (dash.length) ctx.setLineDash(dash);
+  ctx.beginPath();
+  for (let i = 0; i <= 64; i++) {
+    const a = (i / 64) * Math.PI * 2;
+    const ox = cx2 + rx * Math.cos(a);
+    const oy = cy2 + ry * Math.sin(a);
+    const pp = proj2D(ox, oy);
+    i === 0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function label(px, py, text, color='#cce8f0', size=10, alpha=1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.font = `${size}px 'Space Mono', monospace`;
+  ctx.fillText(text, px + 8, py - 4);
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// ORBIT PARAMETRIC PATHS
+
+const ORBITS = {
+  leo: {
+    name: 'LEO', color: '#4488ff',
+    period: 0.0643, // days — 92.6 min ISS orbit
+    desc: 'Low Earth Orbit (~408 km). The ISS orbits here, completing one lap every 92 minutes. Atmospheric drag requires periodic reboosts.',
+    path: (t) => {
+      const r = 0.01764; // 6779 km from Earth center = 408 km altitude
+      const a = t * Math.PI * 2;
+      return { x: EARTH_X + r*Math.cos(a), y: r*Math.sin(a), z: 0 };
+    }
+  },
+  geo: {
+    name: 'GEO', color: '#8844ff',
+    period: 0.9973, // days — 1 sidereal day
+    desc: 'Geostationary orbit (35,786 km). Satellites here match Earth\'s rotation — one orbit per sidereal day (23h 56m). TV satellites, weather satellites.',
+    path: (t) => {
+      const r = 0.1097; // 42,164 km from Earth center = 35,786 km altitude
+      const a = t * Math.PI * 2;
+      return { x: EARTH_X + r*Math.cos(a), y: r*Math.sin(a), z: 0 };
+    }
+  },
+  dro: {
+    name: 'DRO', color: '#ff6b35',
+    period: 14.77, // days — CR3BP DRO period at r≈0.18
+    desc: 'Distant Retrograde Orbit — one of the most stable natural orbits in cislunar space (~69,000 km from Moon). Period ~14.8 days. Retrograde motion (opposite to Moon\'s rotation) makes it resilient to perturbations. Proposed staging point for deep space missions.',
+    path: (t) => {
+      const r = 0.18;
+      const a = -t * Math.PI * 2; // retrograde
+      return { x: MOON_X + r*Math.cos(a), y: r*Math.sin(a), z: 0 };
+    }
+  },
+  nrho: {
+    name: 'NRHO (Gateway)', color: '#ffdd44',
+    period: 6.562, // days — Gateway's actual NRHO period
+    desc: 'Near Rectilinear Halo Orbit — NASA Gateway\'s chosen home. Period: 6.56 days. Highly elongated: swoops to ~3,000 km at lunar south pole, then arcs out to ~70,000 km. Semi-stable, needing only ~10 m/s ΔV/year of station-keeping.',
+    path: (t) => {
+      const a  = t * Math.PI * 2;
+      const rx = 0.04;
+      const ry = 0.14;
+      const rz = 0.10;
+      return {
+        x: MOON_X + rx * Math.cos(a),
+        y: ry * Math.sin(a),
+        z: rz * Math.sin(a) * 0.7
+      };
+    }
+  },
+  halo_l1: {
+    name: 'L1 Halo Orbit', color: '#00c8ff',
+    period: 14.37, // days — typical L1 halo period
+    desc: 'Halo orbit around L1 — three-dimensional orbit that loops around the L1 Lagrange point. Period ~14.4 days. Used by ISEE-3 (1978) and WIND. Unstable — diverges from nominal in weeks without station-keeping.',
+    path: (t) => {
+      const a  = t * Math.PI * 2;
+      const rx = 0.08;
+      const ry = 0.12;
+      const rz = 0.09;
+      return {
+        x: L1_X + rx * Math.cos(a),
+        y: ry * Math.sin(a),
+        z: rz * Math.sin(a)
+      };
+    }
+  },
+  halo_l2: {
+    name: 'L2 Halo Orbit (E-M)', color: '#00ffcc',
+    period: 14.18, // days — typical L2 halo period
+    desc: 'Halo orbit around Earth-Moon L2 — on the far side of the Moon. Period ~14.2 days. Unstable — requires periodic correction burns. Note: JWST orbits the Sun-Earth L2, a completely different and much farther point (~1.5M km from Earth).',
+    path: (t) => {
+      const a  = t * Math.PI * 2;
+      const rx = 0.08;
+      const ry = 0.12;
+      const rz = 0.09;
+      return {
+        x: L2_X + rx * Math.cos(a),
+        y: ry * Math.sin(a),
+        z: rz * Math.sin(a)
+      };
+    }
+  },
+  lyapunov: {
+    name: 'L1 Lyapunov', color: '#ff44aa',
+    period: 14.37, // days — same family as L1 halo
+    desc: 'Planar Lyapunov orbit around L1 — lies entirely in the orbital plane. Period ~14.4 days. Unstable saddle-type equilibrium. The in-plane precursor to 3D halo orbits. Gateway to invariant manifolds that connect Lagrange points across the solar system.',
+    path: (t) => {
+      const a  = t * Math.PI * 2;
+      const rx = 0.10;
+      const ry = 0.15;
+      return {
+        x: L1_X + rx * Math.cos(a),
+        y: ry * Math.sin(a),
+        z: 0
+      };
+    }
+  },
+  jwst: {
+    name: 'JWST (Sun-Earth L2)', color: '#ff88ff',
+    period: 182.5, // days — ~6 month Lissajous orbit
+    desc: 'James Webb Space Telescope orbits the Sun-Earth L2 point, ~1.5M km from Earth (3.9× the Moon\'s distance). Period: ~6 months (182.5 days). Lissajous halo orbit: 250,000–830,000 km from SE-L2. Kept on the anti-Sun side so the sunshield always blocks Earth, Moon, and Sun simultaneously. Unstable — requires ~2–4 m/s ΔV/year station-keeping.',
+    path: (t) => {
+      // JWST actual parameters (normalized to Earth-Moon distance = 1):
+      // SE-L2 is 3.9 EM-distances from Earth
+      // In-plane amplitude: ~540,000 km = 1.405 EM-dist (semi-major of ellipse)
+      // Out-of-plane amplitude: ~500,000 km = 1.30 EM-dist
+      // Min distance from L2: ~250,000 km = 0.65 EM-dist
+      // The orbit is highly elliptical and roughly perpendicular to Sun-Earth line
+      const a   = t * Math.PI * 2;
+      const ry  = 1.40;  // in-plane (Y) amplitude in normalized units
+      const rz  = 1.20;  // out-of-plane (Z) amplitude
+      // slight eccentricity: x varies ±0.35 (250k–830k km range mapped)
+      const rx  = 0.30;
+      return {
+        x: SE_L2_X + rx * Math.cos(2 * a),  // double-frequency gives elliptic x
+        y: ry * Math.sin(a),
+        z: rz * Math.cos(a)
+      };
+    }
+  }
+};
+
+// ─────────────────────────────────────────────
+// JACOBI / ZERO VELOCITY CURVE approximation
+// Effective potential in rotating frame:
+// Omega = -0.5*(x^2+y^2) - (1-mu)/r1 - mu/r2
+// We compute on a grid and draw contours at Jacobi values near L1/L2
+
+function computeZVC(Cval) {
+  const pts = [];
+  const n = 80;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const x = -0.7 + (i / n) * 1.5;
+      const y = -0.7 + (j / n) * 1.4;
+      const r1 = Math.sqrt((x - EARTH_X)**2 + y**2);
+      const r2 = Math.sqrt((x - MOON_X)**2  + y**2);
+      const Om = 0.5*(x*x + y*y) + (1-MU)/r1 + MU/r2;
+      const C  = 2*Om;
+      if (Math.abs(C - Cval) < 0.06) pts.push([x, y]);
+    }
+  }
+  return pts;
+}
+
+let zvcPoints_L1, zvcPoints_L2;
+function precomputeZVC() {
+  // C values near L1 and L2 (approximate)
+  const CL1 = 3.188;
+  const CL2 = 3.172;
+  zvcPoints_L1 = computeZVC(CL1);
+  zvcPoints_L2 = computeZVC(CL2);
+}
+precomputeZVC();
+
+// ─────────────────────────────────────────────
+// MANIFOLD TUBES (approximated as ribbons)
+function getManifoldPoints(cx2, cy2, r, isUnstable, n=12) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2;
+    // small offset
+    const x0 = cx2 + r * 0.01 * Math.cos(a0);
+    const y0 = cy2 + r * 0.01 * Math.sin(a0);
+    // integrate outward with simple CR3BP
+    const trail = [];
+    let x = x0, y = y0;
+    let vx = isUnstable ? -Math.sin(a0) * 0.02 : Math.cos(a0) * 0.02;
+    let vy = isUnstable ?  Math.cos(a0) * 0.02 : Math.sin(a0) * 0.02;
+    const dt = 0.01;
+    for (let s = 0; s < 200; s++) {
+      trail.push([x, y]);
+      const r1 = Math.sqrt((x-EARTH_X)**2 + y**2);
+      const r2 = Math.sqrt((x-MOON_X)**2  + y**2);
+      const ax = 2*vy + x - (1-MU)*(x-EARTH_X)/r1**3 - MU*(x-MOON_X)/r2**3;
+      const ay = -2*vx + y - (1-MU)*y/r1**3 - MU*y/r2**3;
+      vx += ax * dt; vy += ay * dt;
+      x  += vx * dt; y  += vy * dt;
+      if (x < -0.8 || x > 1.5 || Math.abs(y) > 0.9) break;
+    }
+    pts.push(trail);
+  }
+  return pts;
+}
+
+// ─────────────────────────────────────────────
+// PARTICLE SYSTEM (perturbed orbits)
+function initParticles() {
+  perturbedParticles = [];
+  if (activeOrbit === 'none') return;
+  const orb = ORBITS[activeOrbit];
+  const n   = 6;
+  for (let i = 0; i < n; i++) {
+    const t0 = i / n;
+    const p0 = orb.path(t0);
+    // perturb position
+    const pertR = perturbSize / 100 * 0.05;
+    const ang   = Math.random() * Math.PI * 2;
+    const px    = p0.x + pertR * Math.cos(ang);
+    const py    = p0.y + pertR * Math.sin(ang);
+    // initial velocity tangent + perturbation
+    const p1    = orb.path(t0 + 0.001);
+    let vx = (p1.x - p0.x) / 0.001 * 0.001;
+    let vy = (p1.y - p0.y) / 0.001 * 0.001;
+    vx += pertR * 0.1 * (Math.random()-0.5);
+    vy += pertR * 0.1 * (Math.random()-0.5);
+    perturbedParticles.push({ x: px, y: py, z: 0, vx, vy, vz:0, trail:[], age:0, color: orb.color });
+  }
+}
+
+function stepParticles(dt) {
+  for (const p of perturbedParticles) {
+    p.trail.push([p.x, p.y, p.z]);
+    if (p.trail.length > 300) p.trail.shift();
+    const r1 = Math.sqrt((p.x-EARTH_X)**2 + p.y**2 + p.z**2);
+    const r2 = Math.sqrt((p.x-MOON_X)**2  + p.y**2 + p.z**2);
+    if (r1 < 0.02 || r2 < 0.005) { p.dead = true; continue; }
+    const ax = 2*p.vy + p.x - (1-MU)*(p.x-EARTH_X)/r1**3 - MU*(p.x-MOON_X)/r2**3;
+    const ay = -2*p.vx + p.y - (1-MU)*p.y/r1**3 - MU*p.y/r2**3;
+    const az = -(1-MU)*p.z/r1**3 - MU*p.z/r2**3;
+    const dtS = dt * 0.015;
+    p.vx += ax*dtS; p.vy += ay*dtS; p.vz += az*dtS;
+    p.x  += p.vx*dtS; p.y += p.vy*dtS; p.z += p.vz*dtS;
+    p.age++;
+    if (p.age > 800) p.dead = true;
+  }
+  perturbedParticles = perturbedParticles.filter(p => !p.dead);
+}
+
+// ─────────────────────────────────────────────
+// TRANSFER PARTICLE
+function initTransfer() {
+  transferParticle = null;
+  document.getElementById('btn-moi').disabled = true;
+  document.getElementById('btn-nrho').disabled = true;
+  document.getElementById('btn-tli').classList.remove('active');
+  document.getElementById('btn-moi').classList.remove('active');
+  document.getElementById('btn-nrho').classList.remove('active');
+}
+
+// ─────────────────────────────────────────────
+// CHAPTER CONFIGS
+// Chapter index map (for reference):
+// 0 = Scale, 1 = Solar Context, 2 = Lagrange, 3 = Orbits, 4 = Stability, 5 = Transfer
+const CHAPTERS = [
+  {
+    title: '01 · SCALE OF THE EARTH–MOON SYSTEM',
+    narrative: `<p>The most important thing to understand about cislunar space is how <b>empty</b> it is. The Earth–Moon distance is 384,400 km — far enough that all the other planets in the solar system could fit in the gap with room to spare.</p>
+<p>Most space diagrams you've seen are deeply misleading. The Moon is typically drawn centimeters from Earth when it should be meters away at the same scale. This visualization uses <b>true proportions</b>.</p>
+<p>Key numbers: <span class="stat">Earth–Moon: 384,400 km</span> <span class="stat">Moon period: 27.32 days</span> <span class="stat">L1: 326,400 km</span> <span class="stat">L2: 444,200 km</span></p>
+<p>The Moon's mass is 1/81.3 of Earth's — small, but enough to carve out a <b>Hill sphere</b> (~60,000 km radius) where lunar gravity dominates. Toggle the overlay on the left to see it.</p>`,
+    zoom: 50
+  },
+  {
+    title: '02 · SOLAR CONTEXT — TRUE SCALE',
+    narrative: `<p>Zoomed out to 1 AU, the entire Earth-Moon system is a <b class="hl-orange">single invisible point</b>. The Moon's 384,400 km orbit is smaller than Earth's dot at this scale. Distance is not a straight line — it compounds.</p>
+<p>The <b class="hl-pink">Sun-Earth L2</b> sits 1.5 million km behind Earth — 3.9× the Earth-Moon distance. JWST orbits there in a ~6-month Lissajous halo, kept on the anti-Sun side so its sunshield blocks Earth, Moon, and Sun simultaneously.</p>
+<p><b class="hl-yellow">SE-L1</b> (1.5M km sunward) is the solar observation post — SOHO has monitored the Sun from there since 1996. DSCOVR provides space weather warnings.</p>
+<p>The <b class="hl-green">SE-L4 and SE-L5</b> points, 60° ahead of and behind Earth along its orbit, host the Trojan asteroids — gravitationally parked there for billions of years. NASA's Lucy mission is currently touring them.</p>`,
+    zoom: 1
+  },
+  {
+    title: '03 · LAGRANGE POINTS',
+    narrative: `<p>Lagrange points are locations where a small object can orbit in a <b>fixed position relative to two larger bodies</b>. In the rotating Earth-Moon frame they appear stationary — gravity and centrifugal force cancel exactly.</p>
+<p><b>L1 &amp; L2</b> straddle the Moon on the Earth-Moon line. L1 is the gateway: a spacecraft there can fall toward the Moon with almost no energy cost. L2 overlooks the lunar far side — ideal for relay satellites and deep-space staging.</p>
+<p><b>L3</b> lies behind Earth from the Moon's perspective. Unstable and energetically remote — no practical missions use it.</p>
+<p><b class="hl-green">L4 &amp; L5</b> form equilateral triangles with Earth and Moon and are <b>genuinely stable</b>. Objects nudged away return naturally. The Sun-Earth equivalents host the Greek and Trojan asteroid swarms — thousands of rocks that have been there for billions of years.</p>`,
+    zoom: 40
+  },
+  {
+    title: '04 · CISLUNAR ORBIT FAMILIES',
+    narrative: `<p>Cislunar space supports a rich zoo of orbital families that don't exist in simple two-body mechanics. The three-body gravitational interaction between Earth, Moon, and spacecraft creates entirely new trajectory options.</p>
+<p>The <b class="hl-orange">DRO</b> (Distant Retrograde Orbit) is the most naturally stable — retrograde motion around the Moon is self-correcting in the CR3BP. Period ~14.8 days. Spacecraft here rarely need station-keeping burns.</p>
+<p>The <b class="hl-yellow">NRHO</b> is NASA's choice for the Lunar Gateway. It swoops to within ~3,000 km of the lunar south pole, enabling direct communication with surface crews, then arcs out to ~70,000 km. Needs only ~10 m/s ΔV/year.</p>
+<p><b>Halo orbits</b> loop around L1 or L2 in three dimensions — a spacecraft there has simultaneous line-of-sight to both Earth and the lunar far side. Unstable: requires station-keeping burns every 1–3 weeks.</p>`,
+    zoom: 40
+  },
+  {
+    title: '05 · ORBITAL STABILITY',
+    narrative: `<p>Stability in the three-body problem is not binary — it's a spectrum. This chapter lets you probe it directly by launching identical spacecraft with tiny position offsets and watching how they diverge.</p>
+<p><b class="hl-green">Stable orbits</b> (DRO, L4/L5) act like bowls: perturbed trajectories oscillate around the nominal and stay bounded indefinitely. No fuel required. These are the "free" orbits of cislunar space.</p>
+<p><b class="hl-orange">Unstable orbits</b> (halos, Lyapunov) act like saddles: one direction pulls back, the other pushes away. Perturbations grow exponentially — a millimeter error today becomes kilometers in days.</p>
+<p>The instability e-folding time in the Earth-Moon system is typically <b>~3–5 days</b>. Real missions correct with burns every few weeks. This is a continuous operational requirement — not a contingency.</p>`,
+    zoom: 40
+  },
+  {
+    title: '06 · EARTH TO CISLUNAR TRANSFER',
+    narrative: `<p>Getting to the Moon takes ~3 days and three precisely timed rocket burns. The trajectory is not a straight line — it's a carefully shaped arc that exploits the Moon's gravity at exactly the right moment.</p>
+<p>The <b>TLI burn</b> (~3 km/s) accelerates the spacecraft from Earth parking orbit onto a highly elliptical transfer arc. Engines off after ignition — the spacecraft coasts on orbital mechanics alone for ~3 days.</p>
+<p>The <b>LOI burn</b> (~300 m/s retrograde) is the critical moment. Without it, the spacecraft swings past the Moon and returns to Earth. It fires at periapsis where velocity is highest, maximizing Oberth efficiency.</p>
+<p>A small <b>circularization burn</b> (~51 m/s) at the next periapsis tightens the ellipse into a stable Low Lunar Orbit. Apollo did this manually. The fuel fraction dominates launch mass — it's why lunar missions are expensive.</p>`,
+    zoom: 40
+  }
+];
+
+// ─────────────────────────────────────────────
+// MAIN DRAW
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Starfield background
+  ctx.fillStyle = '#020408';
+  ctx.fillRect(0, 0, W, H);
+  drawStars();
+
+  // Draw reference plane grid (not in solar context ch1)
+  if (currentChapter !== 1) drawGrid();
+
+  // Stability zones (color-coded background)
+  if (overlays.zones && currentChapter >= 2 && currentChapter < 6) drawStabilityZones();
+
+  // Zero velocity curves
+  if (overlays.zvc && currentChapter >= 2 && currentChapter < 6) drawZVC();
+
+  // Hill sphere around Moon
+  if (overlays.hill && currentChapter >= 2 && currentChapter < 6) drawHillSphere();
+
+  // Manifold tubes
+  if (overlays.manifold && currentChapter >= 3 && currentChapter < 6) drawManifolds();
+
+  // Orbit paths
+  if (currentChapter >= 3 && currentChapter < 6) drawOrbits();
+
+  // Perturbed particles
+  drawParticleTrails();
+
+  // Transfer trajectory
+  if (currentChapter === 5) drawTransfer();
+
+  // Main bodies
+  drawBodies();
+
+  // Lagrange points (E-M only, not in solar context)
+  if (currentChapter >= 2 && currentChapter < 6) drawLagrangePoints();
+
+  // Solar context overlay (chapter 1)
+  if (currentChapter === 1) drawSolarContext();
+
+  // Annotations
+  drawAnnotations();
+}
+
+// ─────────────────────────────────────────────
+let stars = [];
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 400; i++) {
+    stars.push({ x: Math.random()*W, y: Math.random()*H, r: Math.random()*1.2, a: 0.3 + Math.random()*0.7 });
+  }
+}
+
+function drawStars() {
+  for (const s of stars) {
+    ctx.globalAlpha = s.a;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawGrid() {
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  ctx.strokeStyle = '#00c8ff';
+  ctx.lineWidth = 0.5;
+  for (let gx = -5; gx <= 5; gx += 0.25) {
+    const p1 = project(gx, -5, 0);
+    const p2 = project(gx,  5, 0);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+  for (let gy = -5; gy <= 5; gy += 0.25) {
+    const p1 = project(-5, gy, 0);
+    const p2 = project( 5, gy, 0);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawStabilityZones() {
+  // Paint DRO stability zone (green halo around Moon)
+  const moonP = proj2D(MOON_X, 0);
+  const rDRO = HILL_R * scale;
+  const gradient = ctx.createRadialGradient(moonP.x, moonP.y, rDRO*0.1, moonP.x, moonP.y, rDRO);
+  gradient.addColorStop(0, 'rgba(127,255,107,0.07)');
+  gradient.addColorStop(0.5,'rgba(127,255,107,0.04)');
+  gradient.addColorStop(1, 'rgba(127,255,107,0)');
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = gradient;
+  ctx.beginPath(); ctx.arc(moonP.x, moonP.y, rDRO, 0, Math.PI*2); ctx.fill();
+  // L4/L5 stable zones
+  for (const [lx, ly] of [[L4_X, L4_Y],[L5_X, L5_Y]]) {
+    const lp = proj2D(lx, ly);
+    const rL45 = 0.12 * scale;
+    const g2 = ctx.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, rL45);
+    g2.addColorStop(0,'rgba(127,255,107,0.12)');
+    g2.addColorStop(1,'rgba(127,255,107,0)');
+    ctx.fillStyle = g2;
+    ctx.beginPath(); ctx.arc(lp.x, lp.y, rL45, 0, Math.PI*2); ctx.fill();
+  }
+  // L1/L2 unstable zones (red tinge)
+  for (const lx of [L1_X, L2_X]) {
+    const lp = proj2D(lx, 0);
+    const rL12 = 0.10 * scale;
+    const g3 = ctx.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, rL12);
+    g3.addColorStop(0,'rgba(255,80,80,0.10)');
+    g3.addColorStop(1,'rgba(255,80,80,0)');
+    ctx.fillStyle = g3;
+    ctx.beginPath(); ctx.arc(lp.x, lp.y, rL12, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawZVC() {
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = 'rgba(0,200,255,0.5)';
+  for (const [x,y] of (zvcPoints_L1||[])) {
+    const p = proj2D(x, y);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 1.5, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(0,255,180,0.5)';
+  for (const [x,y] of (zvcPoints_L2||[])) {
+    const p = proj2D(x, y);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 1.5, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawHillSphere() {
+  const moonP = proj2D(MOON_X, 0);
+  const r = HILL_R * scale;
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = '#7fff6b';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  // draw projected ellipse for tilted view
+  ctx.beginPath();
+  for (let i = 0; i <= 64; i++) {
+    const a = (i/64)*Math.PI*2;
+    const ox = MOON_X + HILL_R * Math.cos(a);
+    const oy = HILL_R * Math.sin(a);
+    const pp = proj2D(ox, oy);
+    i===0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawManifolds() {
+  const trails = getManifoldPoints(L1_X, 0, 0.10, true, 8);
+  ctx.save();
+  for (const trail of trails) {
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = '#ff6b35';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < trail.length; i++) {
+      const pp = proj2D(trail[i][0], trail[i][1]);
+      i===0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+    }
+    ctx.stroke();
+  }
+  const stable = getManifoldPoints(L1_X, 0, 0.10, false, 8);
+  for (const trail of stable) {
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = '#00c8ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < trail.length; i++) {
+      const pp = proj2D(trail[i][0], trail[i][1]);
+      i===0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawOrbits() {
+  const show = currentChapter >= 3;
+  if (!show) return;
+  // show all or just selected
+  const toShow = activeOrbit !== 'none' ? [activeOrbit] : ['leo','geo','dro','nrho'];
+  for (const key of toShow) {
+    const orb = ORBITS[key];
+    if (!orb) continue;
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = orb.color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 128; i++) {
+      const t = i / 128;
+      const p = orb.path(t);
+      const pp = project(p.x, p.y, p.z);
+      i===0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // Moving spacecraft dot — rate = 1/period so one lap = one orbital period
+    const period = orb.period || 27.322; // days; fallback = Moon period
+    const t0 = (simTime / period) % 1;
+    const sp = orb.path(t0);
+    const spp = project(sp.x, sp.y, sp.z);
+    circle(spp.x, spp.y, 4, orb.color, null, 0.9);
+    circle(spp.x, spp.y, 7, null, orb.color, 0.3);
+  }
+}
+
+function drawParticleTrails() {
+  if (!overlays.trails) return;
+  for (const p of perturbedParticles) {
+    if (p.trail.length < 2) continue;
+    ctx.save();
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < p.trail.length; i++) {
+      ctx.globalAlpha = (i / p.trail.length) * 0.6;
+      const pp = project(p.trail[i][0], p.trail[i][1], p.trail[i][2]);
+      i===0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+    // dot
+    const pp = project(p.x, p.y, p.z);
+    circle(pp.x, pp.y, 3, p.color, null, 0.8);
+  }
+}
+
+function drawTransfer() {
+  if (!transferParticle) return;
+  const p = transferParticle;
+  // trail
+  if (p.trail.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#ff6b35';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < p.trail.length; i++) {
+      ctx.globalAlpha = (i / p.trail.length) * 0.8;
+      const pt = p.trail[i];
+      const pp = project(pt[0], pt[1], pt[2]||0);
+      i===0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (!p.dead) {
+    const pp = project(p.x, p.y, 0);
+    circle(pp.x, pp.y, 5, '#ff6b35', null, 1);
+    circle(pp.x, pp.y, 9, null, '#ff6b35', 0.4);
+  }
+}
+
+function drawBodies() {
+  // In solar context (ch 1), draw Sun via drawSolarContext instead; just show Earth as a bright dot
+  if (currentChapter === 1) {
+    const ep = proj2D(EARTH_X, 0);
+    const earthR = Math.max(3, 3);
+    circle(ep.x, ep.y, earthR, '#4488ff', '#88bbff', 1);
+    // bright glow so it's findable
+    const eg = ctx.createRadialGradient(ep.x, ep.y, earthR, ep.x, ep.y, earthR*5);
+    eg.addColorStop(0,'rgba(68,136,255,0.4)'); eg.addColorStop(1,'rgba(68,136,255,0)');
+    ctx.save(); ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(ep.x, ep.y, earthR*5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+    label(ep.x + 5, ep.y - 6, 'EARTH + MOON', '#4488ff', 9);
+    return;
+  }
+
+  // Earth
+  const ep = proj2D(EARTH_X, 0);
+  const earthR = Math.max(4, (EARTH_R_KM / EM_DIST_KM) * scale * 2.5);
+  const earthGrad = ctx.createRadialGradient(ep.x-earthR*0.3, ep.y-earthR*0.3, 0, ep.x, ep.y, earthR);
+  earthGrad.addColorStop(0, '#6aadff');
+  earthGrad.addColorStop(0.4,'#4488ff');
+  earthGrad.addColorStop(1, '#112244');
+  circle(ep.x, ep.y, earthR, earthGrad, '#4488ff', 1);
+  // Earth glow
+  const eg = ctx.createRadialGradient(ep.x, ep.y, earthR, ep.x, ep.y, earthR*3);
+  eg.addColorStop(0,'rgba(68,136,255,0.12)'); eg.addColorStop(1,'rgba(68,136,255,0)');
+  ctx.save(); ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(ep.x, ep.y, earthR*3, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  label(ep.x, ep.y - earthR - 2, 'EARTH', '#4488ff', 10);
+
+  // Moon
+  const mp = proj2D(MOON_X, 0);
+  const moonR  = Math.max(2, (MOON_R_KM  / EM_DIST_KM) * scale * 2.5);
+  const moonGrad = ctx.createRadialGradient(mp.x-moonR*0.3, mp.y-moonR*0.3, 0, mp.x, mp.y, moonR);
+  moonGrad.addColorStop(0,'#ddddcc'); moonGrad.addColorStop(1,'#555555');
+  circle(mp.x, mp.y, moonR, moonGrad, '#aaaaaa', 1);
+  label(mp.x, mp.y - moonR - 2, 'MOON', '#aaaaaa', 10);
+
+  // Moon orbit dashed ring
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = '#aaaaaa';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([3,6]);
+  ctx.beginPath();
+  for (let i = 0; i <= 128; i++) {
+    const a = (i/128)*Math.PI*2;
+    const dist = MOON_X - EARTH_X;
+    const px2 = EARTH_X + dist*Math.cos(a);
+    const py2 = dist*Math.sin(a);
+    const pp = proj2D(px2, py2);
+    i===0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLagrangePoints() {
+  const points = [
+    { x: L1_X, y: 0, label:'L1', color:'#00c8ff', stable: false },
+    { x: L2_X, y: 0, label:'L2', color:'#00c8ff', stable: false },
+    { x: L3_X, y: 0, label:'L3', color:'#ffdd44', stable: false },
+    { x: L4_X, y: L4_Y, label:'L4', color:'#7fff6b', stable: true },
+    { x: L5_X, y: L5_Y, label:'L5', color:'#7fff6b', stable: true },
+  ];
+  for (const pt of points) {
+    const pp = proj2D(pt.x, pt.y);
+    // diamond shape
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = pt.color;
+    ctx.fillStyle   = pt.color + '33';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(pp.x,     pp.y - 7);
+    ctx.lineTo(pp.x + 7, pp.y);
+    ctx.lineTo(pp.x,     pp.y + 7);
+    ctx.lineTo(pp.x - 7, pp.y);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+    label(pp.x + 6, pp.y - 8, pt.label + (pt.stable ? ' ★' : ' ⚡'), pt.color, 10);
+  }
+
+  // Sun-Earth L2 — only shown when JWST orbit is active
+  if (activeOrbit === 'jwst') {
+    const sel2p = proj2D(SE_L2_X, 0);
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#ff88ff';
+    ctx.fillStyle   = '#ff88ff33';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sel2p.x,      sel2p.y - 9);
+    ctx.lineTo(sel2p.x + 9,  sel2p.y);
+    ctx.lineTo(sel2p.x,      sel2p.y + 9);
+    ctx.lineTo(sel2p.x - 9,  sel2p.y);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+    label(sel2p.x + 8, sel2p.y - 10, 'SE-L2 ⚡', '#ff88ff', 10);
+    label(sel2p.x + 8, sel2p.y + 4,  '(Sun-Earth)', '#ff88ff88', 9);
+
+    // Dashed line from Earth to SE-L2 showing scale
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = '#ff88ff';
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([4, 8]);
+    const ep2 = proj2D(EARTH_X, 0);
+    ctx.beginPath(); ctx.moveTo(ep2.x, ep2.y); ctx.lineTo(sel2p.x, sel2p.y); ctx.stroke();
+    ctx.restore();
+
+    // Annotation: "3.9× Moon distance"
+    const midP = proj2D((EARTH_X + SE_L2_X) / 2, 0.08);
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ff88ff';
+    ctx.font = "9px 'Space Mono'";
+    ctx.fillText('← 1,500,000 km (3.9× Moon dist) →', midP.x - 80, midP.y);
+    ctx.restore();
+  }
+
+  // Equilateral triangle lines (chapter 2+)
+  if (currentChapter >= 2) {
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = '#7fff6b';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,6]);
+    for (const [lx,ly] of [[L4_X,L4_Y],[L5_X,L5_Y]]) {
+      for (const [bx,by] of [[EARTH_X,0],[MOON_X,0]]) {
+        const p1 = proj2D(lx, ly), p2 = proj2D(bx, by);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+function drawSolarContext() {
+  // ── SUN ──
+  const sunP  = proj2D(SUN_X, 0);
+  // Sun's visual radius: proportional to scale but clamped to something visible
+  const sunVisR = Math.max(18, (SUN_R_KM / EM_DIST_KM) * scale * 0.5);
+  const sunGrad = ctx.createRadialGradient(sunP.x, sunP.y, 0, sunP.x, sunP.y, sunVisR * 2.5);
+  sunGrad.addColorStop(0,   'rgba(255,240,120,1.0)');
+  sunGrad.addColorStop(0.3, 'rgba(255,180, 40,0.8)');
+  sunGrad.addColorStop(0.7, 'rgba(255,100,  0,0.3)');
+  sunGrad.addColorStop(1,   'rgba(255,100,  0,0.0)');
+  ctx.save();
+  ctx.fillStyle = sunGrad;
+  ctx.beginPath(); ctx.arc(sunP.x, sunP.y, sunVisR * 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff8c0';
+  ctx.beginPath(); ctx.arc(sunP.x, sunP.y, sunVisR, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  label(sunP.x, sunP.y - sunVisR - 4, 'SUN', '#ffdd44', 11);
+
+  // ── EARTH'S ORBIT AROUND SUN (dashed circle) ──
+  ctx.save();
+  ctx.globalAlpha = 0.07;
+  ctx.strokeStyle = '#4488ff';
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([6, 12]);
+  ctx.beginPath();
+  for (let i = 0; i <= 128; i++) {
+    const a  = (i / 128) * Math.PI * 2;
+    const ox = SUN_X + AU_NORM * Math.cos(a);
+    const oy = AU_NORM * Math.sin(a);
+    const pp = proj2D(ox, oy);
+    i === 0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // ── SUN-EARTH LAGRANGE POINTS ──
+  // SE-L1 (sunward of Earth)
+  const sel1p = proj2D(SE_L1_X, 0);
+  drawSELPoint(sel1p, 'SE-L1', '#ffdd44', false, 'SOHO · DSCOVR');
+
+  // SE-L2 (anti-sun side)
+  const sel2p = proj2D(SE_L2_X, 0);
+  drawSELPoint(sel2p, 'SE-L2', '#ff88ff', false, 'JWST · Planck');
+
+  // SE-L3 (opposite Earth)
+  const sel3p = proj2D(SE_L3_X, 0);
+  drawSELPoint(sel3p, 'SE-L3', '#ff6644', false, 'unstable · no missions');
+
+  // SE-L4 (60° ahead)
+  const sel4p = proj2D(SE_L4_X, SE_L4_Y);
+  drawSELPoint(sel4p, 'SE-L4', '#7fff6b', true, 'Greek asteroids ★');
+
+  // SE-L5 (60° behind)
+  const sel5p = proj2D(SE_L5_X, SE_L5_Y);
+  drawSELPoint(sel5p, 'SE-L5', '#7fff6b', true, 'Trojan asteroids ★');
+
+  // ── EQUILATERAL TRIANGLE LINES for SE-L4/L5 ──
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = '#7fff6b';
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([6, 10]);
+  for (const [lx, ly] of [[SE_L4_X, SE_L4_Y],[SE_L5_X, SE_L5_Y]]) {
+    for (const [bx, by] of [[SUN_X, 0],[EARTH_X, 0]]) {
+      const p1 = proj2D(lx, ly), p2 = proj2D(bx, by);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // ── JWST ORBIT around SE-L2 ──
+  if (activeOrbit === 'jwst') {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = '#ff88ff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 128; i++) {
+      const t  = i / 128;
+      const p  = ORBITS.jwst.path(t);
+      const pp = project(p.x, p.y, p.z);
+      i === 0 ? ctx.moveTo(pp.x, pp.y) : ctx.lineTo(pp.x, pp.y);
+    }
+    ctx.stroke();
+    // Moving dot
+    const t0 = (simTime * (1/182.5)) % 1;
+    const sp  = ORBITS.jwst.path(t0);
+    const spp = project(sp.x, sp.y, sp.z);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ff88ff';
+    ctx.beginPath(); ctx.arc(spp.x, spp.y, 4, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = '#ff88ff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(spp.x, spp.y, 8, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── EARTH-MOON SYSTEM inset label ──
+  const emp  = proj2D(EARTH_X, 0);
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.strokeStyle = '#4488ff';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([]);
+  // Tiny circle showing Moon's orbit radius
+  const moonOrbitR_px = AU_NORM > 0 ? (1.0 / AU_NORM) * scale : 2;
+  ctx.beginPath(); ctx.arc(emp.x, emp.y, Math.max(3, moonOrbitR_px * 2), 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha = 0.7;
+  ctx.fillStyle = '#4488ff';
+  ctx.font = "9px 'Space Mono'";
+  ctx.fillText('← E-M system', emp.x + 6, emp.y - 6);
+  ctx.restore();
+
+  // ── Scale bar for solar context ──
+  // Show 1 AU bar
+  const auPx = AU_NORM * scale;
+  if (auPx > 40) {
+    const sbX = drawCX() - auPx / 2;
+    const sbY = H - 60;
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.strokeStyle = '#ffdd44';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sbX, sbY); ctx.lineTo(sbX + auPx, sbY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sbX, sbY-4); ctx.lineTo(sbX, sbY+4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sbX+auPx, sbY-4); ctx.lineTo(sbX+auPx, sbY+4); ctx.stroke();
+    ctx.fillStyle = '#ffdd44'; ctx.font = "9px 'Space Mono'";
+    ctx.textAlign = 'center';
+    ctx.fillText('1 AU = 149,600,000 km', sbX + auPx/2, sbY - 8);
+    ctx.restore();
+  }
+}
+
+function drawSELPoint(pp, lbl, color, stable, sublabel) {
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = color;
+  ctx.fillStyle   = color + '33';
+  ctx.lineWidth   = 1.5;
+  const s = 8;
+  ctx.beginPath();
+  ctx.moveTo(pp.x,     pp.y - s);
+  ctx.lineTo(pp.x + s, pp.y);
+  ctx.lineTo(pp.x,     pp.y + s);
+  ctx.lineTo(pp.x - s, pp.y);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  label(pp.x + 9, pp.y - 9, lbl + (stable ? ' ★' : ' ⚡'), color, 10);
+  if (sublabel) label(pp.x + 9, pp.y + 5, sublabel, color + 'aa', 8);
+}
+
+function drawAnnotations() {
+  // Scale bar
+  const sbLen = 0.1 * scale; // 10% of EM dist
+  const sbKm  = Math.round(0.1 * EM_DIST_KM / 1000) + ',000 km';
+  const sbX   = drawCX() - sbLen/2, sbY = H - 45;
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.strokeStyle = '#5a8090';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(sbX, sbY); ctx.lineTo(sbX+sbLen, sbY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sbX, sbY-4); ctx.lineTo(sbX, sbY+4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sbX+sbLen, sbY-4); ctx.lineTo(sbX+sbLen, sbY+4); ctx.stroke();
+  ctx.fillStyle = '#5a8090'; ctx.font = "9px 'Space Mono'";
+  ctx.textAlign = 'center';
+  ctx.fillText(sbKm, sbX+sbLen/2, sbY-7);
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// ANIMATION LOOP
+let lastTime = 0;
+function animate(ts) {
+  const dt = Math.min((ts - lastTime)/1000, 0.05); // seconds, cap at 50ms
+  lastTime = ts;
+  simTime += dt * simSpeed;
+
+  // Animate Moon position
+  const moonAngle = simTime * (2*Math.PI / 27.32);
+  // (we keep Moon fixed in rotating frame — CR3BP — so no update needed)
+
+  // Step particles
+  if (currentChapter === 4) stepParticles(dt * 60);
+
+  // Step transfer
+  if (currentChapter === 5) stepTransferAnim(dt * simSpeed * 120);
+
+  // Update status
+  document.getElementById('sim-time').textContent = 'T+' + simTime.toFixed(2) + ' days';
+
+  draw();
+  raf = requestAnimationFrame(animate);
+}
+
+// Pre-simulate trajectory to find exact tick targets for each burn
+function stepTransferAnim(dt) {
+  if (!transferParticle || transferParticle.dead) return;
+  const p = transferParticle;
+  const steps = Math.max(1, Math.ceil(dt));
+
+  for (let s = 0; s < steps; s++) {
+    p.trail.push([p.x, p.y]);
+    if (p.trail.length > trailLen) p.trail.shift();
+
+    const r1 = Math.sqrt((p.x-EARTH_X)**2 + p.y**2);
+    if (r1 < 0.019 || r1 > 3.5) { p.dead = true; return; }
+
+    // RK4 integration
+    const h = 0.005;
+    function acc(x, y, vx, vy) {
+      const d1 = Math.sqrt((x-EARTH_X)**2 + y**2);
+      const d2 = Math.sqrt((x-MOON_X)**2  + y**2);
+      return [
+        2*vy + x - (1-MU)*(x-EARTH_X)/d1**3 - MU*(x-MOON_X)/d2**3,
+       -2*vx + y - (1-MU)*y/d1**3 - MU*y/d2**3
+      ];
+    }
+    const [ax1,ay1] = acc(p.x,p.y,p.vx,p.vy);
+    const x2=p.x+h/2*p.vx, y2=p.y+h/2*p.vy, vx2=p.vx+h/2*ax1, vy2=p.vy+h/2*ay1;
+    const [ax2,ay2] = acc(x2,y2,vx2,vy2);
+    const x3=p.x+h/2*vx2, y3=p.y+h/2*vy2, vx3=p.vx+h/2*ax2, vy3=p.vy+h/2*ay2;
+    const [ax3,ay3] = acc(x3,y3,vx3,vy3);
+    const x4=p.x+h*vx3, y4=p.y+h*vy3, vx4=p.vx+h*ax3, vy4=p.vy+h*ay3;
+    const [ax4,ay4] = acc(x4,y4,vx4,vy4);
+    p.x  += h/6*(p.vx+2*vx2+2*vx3+vx4);
+    p.y  += h/6*(p.vy+2*vy2+2*vy3+vy4);
+    p.vx += h/6*(ax1+2*ax2+2*ax3+ax4);
+    p.vy += h/6*(ay1+2*ay2+2*ay3+ay4);
+    p.age++;
+
+    // Countdown to LOI (burn at periapsis)
+    if (transferStep === 0 && !p.loiDone) {
+      const ticksLeft = Math.max(0, p.loiTick - p.age);
+      document.getElementById('cdf-val').textContent = ticksLeft > 0 ? ticksLeft : '▶ FIRE';
+      if (ticksLeft <= 80) document.getElementById('btn-moi').classList.add('pulse');
+      if (ticksLeft <= 20 && !autoFire) simSpeed = Math.min(simSpeed, 0.15);
+      if (p.age >= p.loiTick) {
+        p.loiDone = true;
+        document.getElementById('btn-moi').disabled = false;
+        document.getElementById('cdf-val').textContent = '▶ FIRE NOW';
+        if (autoFire) stepTransfer(1);
+      }
+    }
+
+    // Countdown to circularization (2nd burn at next periapsis)
+    if (transferStep === 1 && p.loiDone && !p.circDone) {
+      const ticksLeft = Math.max(0, p.circTick - p.age);
+      document.getElementById('cdi-val').textContent = ticksLeft > 0 ? ticksLeft : '▶ FIRE';
+      if (ticksLeft <= 80) document.getElementById('btn-nrho').classList.add('pulse');
+      if (ticksLeft <= 20 && !autoFire) simSpeed = Math.min(simSpeed, 0.15);
+      if (p.age >= p.circTick) {
+        p.circDone = true;
+        document.getElementById('btn-nrho').disabled = false;
+        document.getElementById('cdi-val').textContent = '▶ FIRE NOW';
+        if (autoFire) stepTransfer(2);
+      }
+    }
+  }
+}
+
+// Tick targets precomputed from Python RK4 simulation (h=0.005)
+// LOI burn at periapsis (tick 5687), DRO snap at tick 5901
+// Tick targets precomputed from Python RK4 simulation (h=0.005)
+// LOI at periapsis tick 5687 (scale 0.55 = ~299 m/s retrograde)
+// Circularization at tick 5758 (scale 0.90 = ~51 m/s retrograde)
+const TRANSFER_LOI_TICK  = 5687;
+const TRANSFER_CIRC_TICK = 5758;
+
+function stepTransfer(step) {
+  transferStep = step;
+
+  if (step === 0) {
+    const r_park = 0.15;
+    const v_circ = Math.sqrt((1-MU) / r_park);
+    transferParticle = {
+      x: EARTH_X + r_park, y: 0.001,
+      vx: 0.0, vy: v_circ * 1.25,
+      trail: [], age: 0, dead: false,
+      loiDone: false, circDone: false,
+      loiTick:  TRANSFER_LOI_TICK,
+      circTick: TRANSFER_CIRC_TICK
+    };
+    document.getElementById('btn-tli').classList.add('active');
+    document.getElementById('btn-moi').disabled = true;
+    document.getElementById('btn-moi').classList.remove('active', 'pulse');
+    document.getElementById('btn-nrho').disabled = true;
+    document.getElementById('btn-nrho').classList.remove('active', 'pulse');
+    document.getElementById('countdown-flyby').style.display = 'block';
+    document.getElementById('countdown-insert').style.display = 'none';
+    document.getElementById('cdf-val').textContent = TRANSFER_LOI_TICK;
+
+  } else if (step === 1) {
+    // LOI: large retrograde burn at periapsis (~299 m/s), captures into elliptical LLO
+    if (!transferParticle || transferParticle.dead) return;
+    const p = transferParticle;
+    p.vx *= 0.55;
+    p.vy *= 0.55;
+    p.loiDone = true;
+    document.getElementById('btn-moi').classList.remove('pulse');
+    document.getElementById('btn-moi').classList.add('active');
+    document.getElementById('countdown-flyby').style.display = 'none';
+    document.getElementById('countdown-insert').style.display = 'block';
+    document.getElementById('cdi-val').textContent = TRANSFER_CIRC_TICK - p.age;
+
+  } else if (step === 2) {
+    // Circularization: small retrograde trim burn at 2nd periapsis (~51 m/s)
+    if (!transferParticle || transferParticle.dead) return;
+    const p = transferParticle;
+    p.vx *= 0.90;
+    p.vy *= 0.90;
+    p.circDone = true;
+    document.getElementById('btn-nrho').classList.remove('pulse');
+    document.getElementById('btn-nrho').classList.add('active');
+    document.getElementById('countdown-insert').style.display = 'none';
+  }
+}
+
+
+
+
+function toggleAutoFire() {
+  autoFire = !autoFire;
+  const btn = document.getElementById('btn-auto');
+  btn.textContent = autoFire ? '⚡ AUTO-FIRE: ON' : '⚡ AUTO-FIRE: OFF';
+  btn.style.borderColor = autoFire ? '#7fff6b' : '';
+  btn.style.color = autoFire ? '#7fff6b' : '';
+}
+
+function updateTrailLen(v) {
+  trailLen = +v;
+  document.getElementById('trail-len-val').textContent = v;
+  // Trim existing trail immediately if shortened
+  if (transferParticle && transferParticle.trail.length > trailLen) {
+    transferParticle.trail.splice(0, transferParticle.trail.length - trailLen);
+  }
+}
+
+function resetTransfer() {
+  transferStep = -1;
+  transferParticle = null;
+  ['btn-tli','btn-moi','btn-nrho'].forEach(id => {
+    const b = document.getElementById(id);
+    b.classList.remove('active', 'pulse');
+    b.disabled = id !== 'btn-tli';
+  });
+  document.getElementById('countdown-flyby').style.display = 'none';
+  document.getElementById('countdown-insert').style.display = 'none';
+  initTransfer();
+}
+
+// ─────────────────────────────────────────────
+// UI HANDLERS
+
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+
+function setChapter(n) {
+  currentChapter = n;
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===n));
+  document.getElementById('chapter-overlay').textContent = CHAPTERS[n].title;
+  document.getElementById('chapter-narrative').innerHTML = CHAPTERS[n].narrative || '';
+  document.getElementById('narrative-chapter-label').textContent = CHAPTERS[n].title;
+
+  // Show/hide chapter-specific controls (now on left panel)
+  document.getElementById('stability-controls').style.display = n===4 ? 'block' : 'none';
+  document.getElementById('transfer-controls').style.display  = n===5 ? 'block' : 'none';
+  document.getElementById('orbit-controls').style.display     = (n===3||n===4) ? 'block' : 'none';
+
+  if (n===4) { perturbedParticles = []; }
+  if (n===5) { initTransfer(); transferStep = -1; }
+
+  camPanX = 0; camPanY = 0;
+
+  if (n === 1) {
+    // Solar context
+    camZoom = 0.55 / AU_NORM;
+    camTilt = 0; camAzim = 0;
+    document.getElementById('tilt-slider').value = 0;
+    document.getElementById('tilt-val').textContent = '0°';
+    clampLogZoom();
+  } else {
+    const chZoomTable = [1.0, 1.0, 0.8, 0.8, 0.8, 0.8];
+    camZoom = chZoomTable[n] || 0.8;
+    clampLogZoom();
+    if (camTilt === 0) {
+      camTilt = 20 * Math.PI / 180;
+      document.getElementById('tilt-slider').value = 20;
+      document.getElementById('tilt-val').textContent = '20°';
+    }
+  }
+  updateOverlayAvailability(n);
+  resize();
+}
+
+function updateOverlayAvailability(n) {
+  // Hill/Zones/ZVC apply to EM chapters (2–5), not Scale(0) or Solar(1)
+  const emActive    = n >= 2 && n < 6;
+  // Manifolds additionally need orbit families (ch 3–5)
+  const orbActive   = n >= 3 && n < 6;
+  // Trails only meaningful when orbits/transfer are running (ch 3–5)
+  const trailActive = n >= 3 && n < 6;
+
+  function setRow(id, enabled) {
+    document.getElementById(id).classList.toggle('overlay-disabled', !enabled);
+  }
+  setRow('row-hill',     emActive);
+  setRow('row-zones',    emActive);
+  setRow('row-zvc',      emActive);
+  setRow('row-manifold', orbActive);
+  setRow('row-trails',   trailActive);
+}
+
+function updateTilt(v) {
+  camTilt = v * Math.PI / 180;
+  document.getElementById('tilt-val').textContent = v + '°';
+}
+
+function updateSpeed(v) {
+  simSpeed = (v / 100) * 5;
+  const disp = simSpeed < 0.1 ? '0x' : simSpeed.toFixed(1)+'x';
+  document.getElementById('speed-val').textContent = disp;
+}
+
+function toggleOverlay(key) {
+  overlays[key] = !overlays[key];
+  document.getElementById('tog-'+key).classList.toggle('on', overlays[key]);
+}
+
+function selectOrbit(val) {
+  activeOrbit = val;
+  perturbedParticles = [];
+  const info = val !== 'none' ? (ORBITS[val]?.desc || '') : 'Select an orbit to learn more.';
+  document.getElementById('orbit-info').textContent = info;
+  if (val === 'jwst') {
+    camZoom = 0.18;
+    clampLogZoom();
+  }
+}
+
+function updatePerturb(v) {
+  perturbSize = v;
+  document.getElementById('perturb-val').textContent = v + '%';
+}
+
+function launchPerturbed() {
+  if (activeOrbit === 'none') return;
+  initParticles();
+}
+
+function clearPerturbed() {
+  perturbedParticles = [];
+}
+
+// ─────────────────────────────────────────────
+// MOUSE / TOUCH CONTROLS
+// Left drag = rotate, Right drag = pan, Scroll = zoom (log scale, continuous)
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 2) {
+    isPanning = true;
+  } else {
+    isDragging = true;
+  }
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+
+canvas.addEventListener('mousemove', e => {
+  const dx = e.clientX - lastMX;
+  const dy = e.clientY - lastMY;
+
+  if (isPanning) {
+    // Convert pixel delta to world units, both axes flipped for natural feel
+    const worldDx =  dx / scale;
+    const worldDy = -dy / (scale * Math.cos(camTilt) + 0.001);
+    camPanX += worldDx;
+    camPanY += worldDy;
+  } else if (isDragging) {
+    camAzim += dx * 0.005;
+    camTilt  = Math.max(0, Math.min(Math.PI/2 - 0.01, camTilt + dy * 0.005));
+    document.getElementById('tilt-slider').value = Math.round(camTilt * 180 / Math.PI);
+    document.getElementById('tilt-val').textContent = Math.round(camTilt * 180 / Math.PI) + '°';
+  }
+
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+
+canvas.addEventListener('mouseup',    e => { isDragging = false; isPanning = false; });
+canvas.addEventListener('mouseleave', e => { isDragging = false; isPanning = false; });
+
+// Logarithmic zoom: spans from solar scale (~0.0015) to close-up (~5)
+// log range: log10(0.0015) ≈ -2.82, log10(5) ≈ 0.70 → total range ~3.52 decades
+const LOG_ZOOM_MIN = Math.log10(0.0012);
+const LOG_ZOOM_MAX = Math.log10(6.0);
+
+function clampLogZoom() {
+  camZoom = Math.max(Math.pow(10, LOG_ZOOM_MIN), Math.min(Math.pow(10, LOG_ZOOM_MAX), camZoom));
+  // Update slider: map log(camZoom) linearly to 0–100
+  const logVal = Math.log10(camZoom);
+  const sliderVal = Math.round(((logVal - LOG_ZOOM_MIN) / (LOG_ZOOM_MAX - LOG_ZOOM_MIN)) * 100);
+  document.getElementById('zoom-slider').value = Math.max(0, Math.min(100, sliderVal));
+  document.getElementById('zoom-val').textContent = camZoom < 0.01
+    ? camZoom.toExponential(1)
+    : camZoom < 1 ? camZoom.toFixed(3)
+    : camZoom.toFixed(2);
+  resize();
+}
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  // Zoom toward/away from cursor position
+  const zoomFactor = e.deltaY > 0 ? 0.92 : 1.087; // ~8% per tick
+  camZoom *= zoomFactor;
+  clampLogZoom();
+}, { passive: false });
+
+// Also update updateZoom to use log scale
+function updateZoom(v) {
+  // v is 0–100 slider value
+  const logVal = LOG_ZOOM_MIN + (v / 100) * (LOG_ZOOM_MAX - LOG_ZOOM_MIN);
+  camZoom = Math.pow(10, logVal);
+  document.getElementById('zoom-val').textContent = camZoom < 0.01
+    ? camZoom.toExponential(1)
+    : camZoom < 1 ? camZoom.toFixed(3)
+    : camZoom.toFixed(2);
+  resize();
+}
+
+// ─────────────────────────────────────────────
+// INIT
+initStars();
+setChapter(0);
+// Open System Data and Legend by default
+toggleSection('sec-data');
+toggleSection('sec-legend');
+requestAnimationFrame(ts => { lastTime = ts; animate(ts); });
+</script>
+</body>
+</html>
